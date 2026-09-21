@@ -1,21 +1,14 @@
 <?php
 /**
- * Configuración de conexión para el servidor remoto
+ * Configuración de conexión dinámicamente leída de Railway (o local si no existen)
  */
 
-
-define('DB_HOST_REMOTE', 'localhost');
-define('DB_NAME_REMOTE', 'credenciales');
-define('DB_USER_REMOTE', 'credenciales');
-define('DB_PASS_REMOTE', 'credenciales');
-
-
-define('DB_HOST', DB_HOST_REMOTE);
-define('DB_NAME', DB_NAME_REMOTE);
-define('DB_USER', DB_USER_REMOTE);
-define('DB_PASS', DB_PASS_REMOTE);
+define('DB_HOST', getenv('MYSQLHOST') ?: 'localhost');
+define('DB_PORT', getenv('MYSQLPORT') ?: '3306');
+define('DB_NAME', getenv('MYSQLDATABASE') ?: 'credenciales');
+define('DB_USER', getenv('MYSQLUSER') ?: 'credenciales');
+define('DB_PASS', getenv('MYSQLPASSWORD') ?: 'credenciales');
 define('DB_CHARSET', 'utf8mb4');
-
 
 /**
  * Función para conectar a la base de datos
@@ -30,9 +23,11 @@ function conectarBD() {
         return $pdo;
     }
     
+    // Incluir el puerto (DB_PORT) es vital en Railway
     $dsn = sprintf(
-        "mysql:host=%s;dbname=%s;charset=%s",
+        "mysql:host=%s;port=%s;dbname=%s;charset=%s",
         DB_HOST,
+        DB_PORT,
         DB_NAME,
         DB_CHARSET
     );
