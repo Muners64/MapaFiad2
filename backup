@@ -1,0 +1,1 @@
+mysql -h yamanote.proxy.rlwy.net -P 10549 -u root -p'rCeYeDYhefksFQjLcYgDyCGOJkSuoxhY' railway < dump-u702613083_mapafiad-202609022301.sql

@@ -1,0 +1,60 @@
+.botones_laterales {
+    position: absolute; 
+    top: 200px; 
+    right: 30px; 
+    z-index: 15;
+}
+
+.lateral-btn {
+    background-color: white;
+    border: 0px solid rgb(238, 238, 238); 
+    border-radius: 1px;
+    padding: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+}
+
+.lateral-btn ion-icon {
+    font-size: 1.6rem;
+}
+
+.lateral-btn:hover {
+    background-color: #f0f0f0;
+}
+
+#btn_menu{
+    margin-top: 15px;
+}
+
+@media screen and (max-width: 767px) {
+    .botones_laterales {
+        top: 150px;
+        right: 10px;
+    }
+
+    .lateral-btn {
+        padding: 8px;
+    }
+
+    .lateral-btn ion-icon {
+        font-size: 1.8rem;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .botones_laterales {
+        top: 140px;
+        right: 5px;
+    }
+
+    .lateral-btn {
+        padding: 6px;
+    }
+
+    .lateral-btn ion-icon {
+        font-size: 1.5rem;
+    }
+}

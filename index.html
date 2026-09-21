@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Mapa FIAD</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&display=swap">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" onerror="this.onerror=null; this.href='libs/leaflet/leaflet.css'" />
+    <link rel="stylesheet" href="styles/styles_barra_navegacion.css?v=21">
+    <link rel="stylesheet" href="styles/styles_btn_laterales.css?v=21">
+    <link rel="stylesheet" href="styles/styles_panel_derecho.css?v=23">
+    <link rel="stylesheet" href="styles/styles_etiquetas.css?v=21">
+    <link rel="stylesheet" href="styles/styles_rutas.css?v=21"> 
+    <link rel="stylesheet" href="styles/styles_suggestion.css?v=21">
+    <style>
+        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+        #mapContainer {
+            position: fixed !important;
+            top: 64px !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100% !important;
+            height: calc(100vh - 64px) !important;
+            z-index: 10;
+        }
+        #map {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+
+        @media screen and (max-width: 768px) {
+            #mapContainer {
+                top: 0 !important;
+                height: 100vh !important;
+                height: 100dvh !important;
+            }
+        }
+    </style>
+    <script src="https://kit.fontawesome.com/5585023123.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" onerror="this.onerror=null; this.href='libs/leaflet-routing-machine/leaflet-routing-machine.css'">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet" onerror="this.onerror=null; this.href='libs/mapbox-gl/mapbox-gl.css'" />
+
+    <script type="module">
+        try {
+            await import('https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js');
+        } catch(e) {
+            await import('./libs/ionicons/ionicons.esm.js');
+        }
+    </script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js" onerror="this.onerror=null; this.src='libs/ionicons/ionicons.js'"></script>
+</head>
+
+<body>
+
+    <!-- Barra de navegacion -->
+
+        <nav class="navbar">
+            <div class="logo_espace">
+                <a href="http://fiad.ens.uabc.mx/index.php"><img src="img/logo_FIAD2.png" alt="imagen_logo"/></a>
+                <span class="uabc-text">FIAD</span>
+            </div>
+            
+            <div class="search-input-box">
+                <input type="text" placeholder="¿A dónde quieres ir?" />
+                <a href="#" class="search-button">
+                    <i class="fa-solid fa-magnifying-glass icon"> </i>
+                </a>
+                <ul class="container-suggestions">
+                    <li>sugerencia 1</li>
+                    <li>sugerencia 2</li>
+                    <li>sugerencia 3</li>
+                </ul>
+            </div>
+        </nav>
+
+
+
+    <!-- Botones Laterales -->
+    <div class="botones_laterales">
+        <button id="btn_zoom_mas" class="lateral-btn"><ion-icon name="add-outline"></ion-icon></button>
+        <button id="btn_zoom_menos" class="lateral-btn"><ion-icon name="remove-outline"></ion-icon></button><br>
+        <button id="btn_gps" class="lateral-btn"><ion-icon name="locate-outline"></ion-icon></button>
+        <button id="btn_centrar" class="lateral-btn"><ion-icon name="navigate-circle-outline"></ion-icon></button><br>
+        <button id="btn_capas" class="lateral-btn"><ion-icon name="layers-outline"></ion-icon></button>
+    </div>
+
+
+    <!-- Mapa --> 
+    <div id="mapContainer">
+        <div id="map"></div>
+    </div>
+
+    <!-- Panel de información -->
+    <div id="panel_informacion" class="panel_informacion">
+        <div id="panelSheetHeader" class="panel-sheet-header" aria-label="Encabezado del panel">
+            <div id="panelHandle" class="panel-handle" aria-label="Arrastrar panel"></div>
+            <h1 id="cerrar-panel" class="cerrar-panel">x</h1>
+        </div>
+        <div id="contenedor_panel_info">
+
+            <div class="btn_encabezado">
+                <ul>
+                    <li id="infoTab" class="tablink active">Información</li>
+                    <li id="interiorTab" class="tablink">Plantas</li>
+                    <li id="salonesTab" class="tablink">Listado de Salones</li>
+                    <li id="cubiculosTab" class="tablink">Cubículos</li>
+                </ul>
+            </div>
+
+            <!-- Contenido de Información -->
+            <div id="infoContent" class="tabcontent">
+                <div class="contenedor_edificio_info">
+                    <img id="edificioImagen" src="" alt="" style="width: 100%;"><br>
+                    <h2 id="edificioNombre"></h2>
+                    <p id="edificioInfo"></p>
+                    <button id="btn_direcciones">Como Llegar</button>
+                </div>
+            </div>
+
+            <!-- INTERIOR -->
+            <div id="interiorContent" class="tabcontent" style="display:none;">
+                <img id="interiorImagen" src="" alt="planos" >
+                <div id="floorButtonsContainer" class="floor-buttons"></div>
+            </div>
+
+            <!-- LISTA DE LOS SAOLONES -->
+            <div id="salonesContent" class="tabcontent" style="display:none;">
+                <ul>
+                    <li>sugerencia 1</li>
+                    <li>sugerencia 2</li>
+                    <li>sugerencia 3</li>
+                </ul>
+            </div>
+
+            <!-- LISTA DE CUBÍCULOS -->
+            <div id="cubiculosContent" class="tabcontent" style="display:none;">
+                <div id="cubiculosLoading" style="text-align: center; padding: 20px;">
+                    Cargando cubículos...
+                </div>
+                <ul id="cubiculosList" style="list-style: none; padding: 0;">
+                 
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function loadScriptWithFallback(cdnUrl, localUrl) {
+            return new Promise((resolve, reject) => {
+                var script = document.createElement('script');
+                script.src = cdnUrl;
+                script.onload = resolve;
+                script.onerror = function() {
+                    console.warn(cdnUrl + ' falló, intentando versión local...');
+                    var localScript = document.createElement('script');
+                    localScript.src = localUrl;
+                    localScript.onload = resolve;
+                    localScript.onerror = reject;
+                    document.body.appendChild(localScript);
+                };
+                document.body.appendChild(script);
+            });
+        }
+
+
+        (async function() {
+            try {
+                await loadScriptWithFallback(
+                    'https://unpkg.com/leaflet/dist/leaflet.js',
+                    'libs/leaflet/leaflet.js'
+                );
+                await loadScriptWithFallback(
+                    'https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js',
+                    'libs/leaflet-routing-machine/leaflet-routing-machine.js'
+                );
+                
+            
+                loadLocalScripts();
+            } catch(error) {
+                console.error('Error cargando librerías:', error);
+                console.error('Detalles del error:', error.message);
+            }
+        })();
+
+        function loadLocalScripts() {
+            const version = '?v=' + Date.now();
+            var scripts = [
+                'scripts/script_capa.js' + version,           
+                'scripts/mapbox_router_php.js' + version,
+                'scripts/script_edificios.js' + version,      
+                'scripts/script_panel_derecho.js' + version,
+                'scripts/buscador.js' + version,
+                'scripts/script_barra_responsiva.js' + version,
+                'scripts/script_ruta.js' + version,
+                'scripts/script_iconos.js' + version
+            ];
+            
+            function loadScriptSequentially(index) {
+                if (index >= scripts.length) return;
+                
+                var script = document.createElement('script');
+                script.src = scripts[index];
+                script.onload = function() {
+                    loadScriptSequentially(index + 1);
+                };
+                script.onerror = function() {
+                    console.error('Error cargando:', scripts[index]);
+                    loadScriptSequentially(index + 1);
+                };
+                document.body.appendChild(script);
+            }
+            
+            loadScriptSequentially(0);
+        }
+    </script>
+</body>
+</html>

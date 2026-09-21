@@ -1,0 +1,14 @@
+.leaflet-routing-geocoders {
+    display: none;
+    flex-direction: column;
+}
+
+.leaflet-routing-geocoders > div {
+    display: none;
+    align-items: center;  
+}
+
+.leaflet-routing-container {
+    display: none;
+}
+
