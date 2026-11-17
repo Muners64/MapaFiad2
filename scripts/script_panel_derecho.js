@@ -742,14 +742,27 @@ function mostrarPanelEdificio(edificio) {
                 ? window.obtenerPuntoEdificio(edificio)
                 : (edificio.labelCoords || edificio.coords[0]);
             if (!endPoint) return;
-            if (endMarker) {
-                map.removeLayer(endMarker);
+
+            if (window.endMarker) {
+                map.removeLayer(window.endMarker);
             }
-            endMarker = L.marker(endPoint, { draggable: true }).addTo(map);
-            endMarker.on('dragend', function () {
-                endPoint = endMarker.getLatLng();
+
+            var opcionesMarcador = { draggable: true };
+            if (window.iconoDestinoRojo) {
+                opcionesMarcador.icon = window.iconoDestinoRojo;
+            }
+
+            window.endMarker = L.marker(endPoint, opcionesMarcador).addTo(map);
+            window.endMarker.on('dragend', function () {
+                endPoint = window.endMarker.getLatLng();
                 updateRoute();
             });
+
+            // Limpiar el pin verde de selección para que no se encime con el pin rojo de destino
+            if (typeof window.limpiarMarcadoresEspacios === 'function') {
+                window.limpiarMarcadoresEspacios();
+            }
+
             updateRoute();
             panel_informacion.style.display = 'none';
         }

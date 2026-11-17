@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Mapa FIAD</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&display=swap">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" onerror="this.onerror=null; this.href='libs/leaflet/leaflet.css'" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" onerror="this.onerror=null; this.href='libs/leaflet/leaflet.css'" />
     <link rel="stylesheet" href="styles/styles_barra_navegacion.css?v=31">
     <link rel="stylesheet" href="styles/styles_btn_laterales.css?v=22">
     <link rel="stylesheet" href="styles/styles_panel_derecho.css?v=24">
@@ -47,7 +47,7 @@
         }
     </style>
     <script src="https://kit.fontawesome.com/5585023123.js" crossorigin="anonymous"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" onerror="this.onerror=null; this.href='libs/leaflet-routing-machine/leaflet-routing-machine.css'">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" onerror="this.onerror=null; this.href='libs/leaflet-routing-machine/leaflet-routing-machine.css'">
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet" onerror="this.onerror=null; this.href='libs/mapbox-gl/mapbox-gl.css'" />
 
     <script type="module">
@@ -112,12 +112,9 @@
 
     <!-- Botones Laterales -->
     <div class="botones_laterales">
-        <!-- Botones anteriores deshabilitados
-        <button id="btn_zoom_mas" class="lateral-btn"><ion-icon name="add-outline"></ion-icon></button>
-        <button id="btn_zoom_menos" class="lateral-btn"><ion-icon name="remove-outline"></ion-icon></button>
-        <button id="btn_gps" class="lateral-btn"><ion-icon name="locate-outline"></ion-icon></button>
-        <button id="btn_centrar" class="lateral-btn"><ion-icon name="navigate-circle-outline"></ion-icon></button>
-        -->
+        <button type="button" id="btn-toggle-ubicacion" class="lateral-btn is-no-permission" aria-label="Activar o desactivar ubicación" title="Ubicación desactivada — Toca para activar">
+            <ion-icon name="location-outline"></ion-icon>
+        </button>
         <button id="btn_capas" class="lateral-btn" title="Cambiar vista del mapa" aria-label="Cambiar vista del mapa">
             <ion-icon name="layers-outline"></ion-icon>
         </button>
@@ -205,23 +202,22 @@
         (async function() {
             try {
                 await loadScriptWithFallback(
-                    'https://unpkg.com/leaflet/dist/leaflet.js',
+                    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
                     'libs/leaflet/leaflet.js'
                 );
                 await loadScriptWithFallback(
-                    'https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js',
+                    'https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js',
                     'libs/leaflet-routing-machine/leaflet-routing-machine.js'
                 );
                 
                 loadLocalScripts();
             } catch(error) {
                 console.error('Error cargando librerías:', error);
-                console.error('Detalles del error:', error.message);
             }
         })();
 
         function loadLocalScripts() {
-            const version = '?v=' + Date.now();
+            const version = '?v=2';
             var scripts = [
                 'scripts/script_capa.js' + version,           
                 'scripts/mapbox_router_php.js' + version,
@@ -236,22 +232,13 @@
                 'scripts/script_horario.js' + version
             ];
             
-            function loadScriptSequentially(index) {
-                if (index >= scripts.length) return;
-                
+            // Descarga todos los scripts en paralelo pero los ejecuta en orden estricto
+            scripts.forEach(function(src) {
                 var script = document.createElement('script');
-                script.src = scripts[index];
-                script.onload = function() {
-                    loadScriptSequentially(index + 1);
-                };
-                script.onerror = function() {
-                    console.error('Error cargando:', scripts[index]);
-                    loadScriptSequentially(index + 1);
-                };
+                script.src = src;
+                script.async = false;
                 document.body.appendChild(script);
-            }
-            
-            loadScriptSequentially(0);
+            });
         }
     </script>
 </body>

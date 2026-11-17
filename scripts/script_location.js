@@ -1,7 +1,8 @@
 (function () {
+  const STORAGE_KEY_UBICACION = 'fiad_ubicacion_activa';
   let ubicacionActiva = false;
-  let marcadorUsuario = null;
-  let circuloPrecision = null;
+  let watchId = null;
+  let primerCentrado = true;
 
   function crearHTMLUbicacion() {
     return `
@@ -11,69 +12,18 @@
     `;
   }
 
-  function obtenerInstanciaMapa() {
-    if (typeof window.map !== 'undefined' && window.map && typeof window.map.addLayer === 'function') {
-      return window.map;
+  function obtenerPreferenciaGuardada() {
+    try {
+      return localStorage.getItem(STORAGE_KEY_UBICACION);
+    } catch (e) {
+      return null;
     }
-    if (typeof map !== 'undefined' && map && typeof map.addLayer === 'function') {
-      return map;
-    }
-    return null;
   }
 
-  function actualizarMarcadorEnMapa(lat, lng, accuracy) {
-    const mapa = obtenerInstanciaMapa();
-    if (!mapa || typeof L === 'undefined') return;
-
-    const coords = [lat, lng];
-    const radio = Math.min(accuracy || 20, 150);
-
-    if (!marcadorUsuario) {
-      const iconoUsuario = L.divIcon({
-        className: '',
-        html: '<div class="user-location-dot"></div>',
-        iconSize: [16, 16],
-        iconAnchor: [8, 8]
-      });
-
-      marcadorUsuario = L.marker(coords, {
-        icon: iconoUsuario,
-        zIndexOffset: 1000
-      })
-        .addTo(mapa)
-        .bindPopup('Tu ubicación actual');
-    } else {
-      marcadorUsuario.setLatLng(coords);
-    }
-
-    if (!circuloPrecision) {
-      circuloPrecision = L.circle(coords, {
-        radius: radio,
-        color: '#2563eb',
-        fillColor: '#3b82f6',
-        fillOpacity: 0.15,
-        weight: 1
-      }).addTo(mapa);
-    } else {
-      circuloPrecision.setLatLng(coords);
-      circuloPrecision.setRadius(radio);
-    }
-
-    mapa.flyTo(coords, Math.max(mapa.getZoom(), 17), { duration: 0.8 });
-  }
-
-  function limpiarMarcadorEnMapa() {
-    const mapa = obtenerInstanciaMapa();
-    if (mapa) {
-      if (marcadorUsuario) {
-        mapa.removeLayer(marcadorUsuario);
-        marcadorUsuario = null;
-      }
-      if (circuloPrecision) {
-        mapa.removeLayer(circuloPrecision);
-        circuloPrecision = null;
-      }
-    }
+  function guardarPreferenciaUbicacion(activa) {
+    try {
+      localStorage.setItem(STORAGE_KEY_UBICACION, activa ? 'true' : 'false');
+    } catch (e) {}
   }
 
   function sincronizarPosicionConNavbar() {
@@ -112,7 +62,14 @@
       }
     }
 
-    function solicitarUbicacionManual() {
+    function solicitarUbicacion(esAutomatico) {
+      if (!window.isSecureContext) {
+        console.warn('[Ubicación] Bloqueada por el navegador: se requiere HTTPS o localhost.');
+        ubicacionActiva = false;
+        actualizarEstadoUI('is-no-permission', 'Requiere HTTPS o localhost para usar GPS en móvil');
+        return;
+      }
+
       if (!('geolocation' in navigator)) {
         ubicacionActiva = false;
         actualizarEstadoUI('is-no-permission', 'Tu navegador no soporta ubicación');
@@ -120,9 +77,14 @@
       }
 
       ubicacionActiva = true;
+      primerCentrado = true;
       actualizarEstadoUI('is-loading', 'Obteniendo ubicación...');
 
-      navigator.geolocation.getCurrentPosition(
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+
+      watchId = navigator.geolocation.watchPosition(
         (pos) => {
           if (!ubicacionActiva) return;
 
@@ -130,8 +92,8 @@
           const lng = pos.coords.longitude;
           const accuracy = pos.coords.accuracy;
 
+          guardarPreferenciaUbicacion(true);
           actualizarEstadoUI('is-active', 'Ubicación activa — Toca para desactivar');
-          actualizarMarcadorEnMapa(lat, lng, accuracy);
 
           window.dispatchEvent(new CustomEvent('ubicacionActualizada', {
             detail: { lat, lng, accuracy }
@@ -139,12 +101,16 @@
         },
         (error) => {
           ubicacionActiva = false;
-          limpiarMarcadorEnMapa();
+          if (watchId !== null) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+          }
 
           let mensajeUI = 'Sin permiso de ubicación — Toca para activar';
           switch (error.code) {
             case error.PERMISSION_DENIED:
               mensajeUI = 'Permiso denegado — Habilítalo en el navegador';
+              if (!esAutomatico) guardarPreferenciaUbicacion(false);
               break;
             case error.POSITION_UNAVAILABLE:
               mensajeUI = 'GPS no disponible — Reintentar';
@@ -159,29 +125,39 @@
         },
         {
           enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
+          timeout: 15000,
+          maximumAge: 3000
         }
       );
     }
 
     function desactivarUbicacionManual() {
       ubicacionActiva = false;
-      limpiarMarcadorEnMapa();
+      guardarPreferenciaUbicacion(false);
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+      }
       actualizarEstadoUI('is-no-permission', 'Ubicación desactivada — Toca para activar');
       window.dispatchEvent(new CustomEvent('ubicacionDesactivada'));
     }
 
-    // Estado inicial por defecto: rojo (sin permiso / desactivado)
+    // Estado inicial por defecto: rojo (sin ubicación)
     actualizarEstadoUI('is-no-permission', 'Ubicación desactivada — Toca para activar');
 
     btn.addEventListener('click', () => {
       if (!ubicacionActiva) {
-        solicitarUbicacionManual();
+        solicitarUbicacion(false);
       } else {
         desactivarUbicacionManual();
       }
     });
+
+    // Al iniciar la app: pedir ubicación automáticamente si el usuario no la apagó manualmente
+    const pref = obtenerPreferenciaGuardada();
+    if (pref !== 'false') {
+      solicitarUbicacion(true);
+    }
   }
 
   if (document.readyState === 'loading') {

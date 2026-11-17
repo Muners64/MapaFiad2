@@ -1,6 +1,31 @@
 let startPoint = null;
 let endPoint = null;
 window.userMarker = null;
+window.endMarker = null;
+
+function crearPinSVG(colorPin, bordePin, claseExtra) {
+  const svgPin =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="25" height="41" viewBox="0 0 25 41" style="filter: drop-shadow(0 2px 3px rgba(0,0,0,0.35));">' +
+      '<path d="M12.5 0C5.6 0 0 5.6 0 12.5C0 21.9 12.5 41 12.5 41S25 21.9 25 12.5C25 5.6 19.4 0 12.5 0Z" fill="' + colorPin + '" stroke="' + bordePin + '" stroke-width="1"/>' +
+      '<circle cx="12.5" cy="12.5" r="4.5" fill="#ffffff"/>' +
+    '</svg>';
+
+  return L.divIcon({
+    className: claseExtra || '',
+    html: svgPin,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34]
+  });
+}
+
+// Azul: Ubicación del usuario | Rojo: Destino de ruta (Verde: Selección en script_edificios.js)
+const iconoUbicacionAzul = crearPinSVG('#2563eb', '#1d4ed8', 'marcador-ubicacion');
+const iconoDestinoRojo = crearPinSVG('#dc2626', '#991b1b', 'marcador-destino');
+
+// Exponer iconos por si script_panel_derecho.js crea el marcador de destino en "Cómo Llegar"
+window.iconoUbicacionAzul = iconoUbicacionAzul;
+window.iconoDestinoRojo = iconoDestinoRojo;
 
 // URL dinámica: detecta automáticamente la ruta base del proyecto
 var _basePath = window.location.pathname.replace(/\/[^\/]*$/, '');
@@ -30,21 +55,22 @@ function updateRoute() {
   }
 }
 
-// Escuchar cuando el usuario ACTIVA su ubicación manualmente
+// Escuchar cuando el usuario ACTIVA o actualiza su ubicación
 window.addEventListener('ubicacionActualizada', (e) => {
   const { lat, lng } = e.detail;
+  const esPrimeraVez = !window.userMarker;
   startPoint = [lat, lng];
 
-  if (window.userMarker) {
-    map.removeLayer(window.userMarker);
+  if (esPrimeraVez) {
+    window.userMarker = L.marker(startPoint, { icon: iconoUbicacionAzul, zIndexOffset: 1000 })
+      .addTo(map)
+      .bindPopup('Estás Aquí')
+      .openPopup();
+    map.setView(startPoint, 18);
+  } else {
+    window.userMarker.setLatLng(startPoint);
   }
 
-  window.userMarker = L.marker(startPoint)
-    .addTo(map)
-    .bindPopup('Estás Aquí')
-    .openPopup();
-
-  map.setView(startPoint, 18);
   updateRoute();
 });
 
@@ -66,7 +92,11 @@ function addCustomButtons() {
         if (window.userMarker) {
           map.removeLayer(window.userMarker);
         }
-        window.userMarker = L.marker(startPoint, { draggable: true }).addTo(map);
+        window.userMarker = L.marker(startPoint, {
+          icon: iconoUbicacionAzul,
+          draggable: true,
+          zIndexOffset: 1000
+        }).addTo(map);
         window.userMarker.on('dragend', () => {
           startPoint = window.userMarker.getLatLng();
           updateRoute();
@@ -78,9 +108,15 @@ function addCustomButtons() {
             ? window.obtenerPuntoEdificio(edificioSeleccionado)
             : (edificioSeleccionado.labelCoords || edificioSeleccionado.coords[0]);
           if (!endPoint) return;
-          endMarker = L.marker(endPoint, { draggable: true }).addTo(map);
-          endMarker.on('dragend', () => {
-            endPoint = endMarker.getLatLng();
+          if (window.endMarker) {
+            map.removeLayer(window.endMarker);
+          }
+          window.endMarker = L.marker(endPoint, {
+            icon: iconoDestinoRojo,
+            draggable: true
+          }).addTo(map);
+          window.endMarker.on('dragend', () => {
+            endPoint = window.endMarker.getLatLng();
             updateRoute();
           });
           updateRoute();

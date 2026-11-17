@@ -125,8 +125,8 @@ try {
     
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    // 2. Seguridad SSL activada
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    // 2. Seguridad SSL desactivada
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($ch, CURLOPT_TIMEOUT, 30);
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
