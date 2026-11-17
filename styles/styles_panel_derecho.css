@@ -19,8 +19,8 @@
 .panel_informacion {
     position: fixed;
     top: 84px;
-    right: 20px;
-    left: auto;
+    left: 20px;
+    right: auto;
     bottom: auto;
     width: 420px;
     height: calc(100vh - 104px);
@@ -31,7 +31,7 @@
     z-index: 200;
     overflow: hidden;
     color: var(--text-dark);
-    animation: slideIn 0.3s ease-out;
+    animation: slideInLeft 0.3s ease-out;
     transform: none;
 }
 
@@ -43,9 +43,9 @@
     display: none;
 }
 
-@keyframes slideIn {
+@keyframes slideInLeft {
     from {
-        transform: translateX(100%);
+        transform: translateX(-100%);
         opacity: 0;
     }
     to {
@@ -84,27 +84,34 @@
 /* Botón de cerrar (X) */
 .cerrar-panel {
     position: absolute;
-    top: 15px;
-    right: 15px;
-    background: none;
+    top: 14px;
+    right: 14px;
+    background: transparent;
     border: none;
     cursor: pointer;
     color: var(--text-dark);
     font-size: 24px;
-    font-weight: bold;
-    padding: 8px;
-    border-radius: 50%;
+    line-height: 1;
+    font-weight: 700;
+    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.2s;
-    z-index: 10;
-    width: 32px;
-    height: 32px;
+    transition: color 0.2s, transform 0.1s;
+    z-index: 30;
+    width: 36px;
+    height: 36px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .cerrar-panel:hover {
-    background-color: var(--bg-light-gray);
+    background: transparent;
+    color: var(--text-gray);
+}
+
+.cerrar-panel:active {
+    transform: scale(0.92);
 }
 
 /* Navegación de pestañas */
@@ -113,7 +120,7 @@
     display: flex;
     justify-content: space-between;
     gap: 10px;
-    margin-top: 50px;
+    margin-top: 44px;
     margin-bottom: 24px;
 }
 
@@ -213,8 +220,6 @@
     transform: scale(0.98);
 }
 
-
-
 #interiorImagen {
     width: 100%;
     height: 100%;
@@ -232,7 +237,6 @@
     margin: 0;
     padding: 0;
 }
-
 
 .salon-piso {
     margin-bottom: 25px;
@@ -434,7 +438,6 @@
     transform: scale(0.98);
 }
 
-
 #cubiculosContent {
     padding: 10px 0;
 }
@@ -446,7 +449,6 @@
         bottom: 0;
         top: auto;
         width: min(100vw - 12px, 560px);
-
         height: var(--panel-height, 45vh);
         height: var(--panel-height, 45dvh);
         border-radius: 22px 22px 18px 18px;
@@ -481,7 +483,6 @@
         z-index: 20;
     }
 
-
     .panel-handle {
         position: relative;
         display: block;
@@ -502,7 +503,6 @@
         top: 50%;
         transition: opacity 220ms ease, transform 220ms ease;
     }
-
 
     .panel-handle::before {
         width: 10px;
@@ -533,11 +533,13 @@
         transform: translate(-50%, -50%) scale(1);
     }
 
-
     .cerrar-panel {
         position: absolute;
-        top: 8px;
+        top: 10px;
         right: 12px;
+        width: 38px;
+        height: 38px;
+        z-index: 30;
     }
 
     #contenedor_panel_info {
@@ -554,7 +556,6 @@
         margin-bottom: 18px;
         gap: 5px;
     }
-
 
     .btn_encabezado ul {
         display: grid;
@@ -577,11 +578,9 @@
         max-height: calc(100dvh - 240px);
     }
 
-
     .panel_informacion.panel-partial .btn_encabezado {
         display: none;
     }
-
 
     .panel_informacion.panel-partial .contenedor_edificio_info img {
         height: 70px;
@@ -658,11 +657,12 @@
     }
 
     .cerrar-panel {
-        font-size: 20px;
+        font-size: 22px;
         width: 40px;
         height: 40px;
-        top: 10px;
+        top: 8px;
         right: 10px;
+        z-index: 30;
     }
 
     #btn_direcciones {
@@ -773,8 +773,6 @@
     border: 1px solid #e0e0e0;
 }
 
-
-
 @media screen and (min-width: 769px) and (max-width: 1024px) {
     .panel_informacion {
         width: 450px;
@@ -790,3 +788,54 @@
     }
 }
 
+/* Spinner circular limpio centrado en todo el panel */
+@keyframes fiadSpin {
+    0%   { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+@keyframes fiadSpinInline {
+    to { transform: rotate(360deg); }
+}
+
+.contenedor_edificio_info.is-loading > * {
+    display: none !important;
+}
+
+.panel_informacion:has(.contenedor_edificio_info.is-loading)::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 36px;
+    height: 36px;
+    border: 3px solid rgba(45, 168, 50, 0.22);
+    border-top-color: var(--accent-green);
+    border-radius: 50%;
+    animation: fiadSpin 0.7s linear infinite;
+    z-index: 25;
+    pointer-events: none;
+}
+
+/* Evita que aparezca cualquier scrollbar en el panel mientras carga */
+#infoContent:has(.contenedor_edificio_info.is-loading),
+#contenedor_panel_info:has(.contenedor_edificio_info.is-loading) {
+    overflow-y: hidden !important;
+}
+
+.spinner-lista-centro {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 160px;
+}
+
+.spinner-lista-centro::after {
+    content: "";
+    width: 30px;
+    height: 30px;
+    border: 3px solid rgba(45, 168, 50, 0.22);
+    border-top-color: var(--accent-green);
+    border-radius: 50%;
+    animation: fiadSpinInline 0.7s linear infinite;
+}

@@ -30,6 +30,7 @@ try {
             esp.nombre_descriptivo,
             esp.nivel_piso,
             esp.capacidad,
+            esp.id_horario,
             tipo.nombre_tipo,
             tipo.id_tipo,
             edif.codigo as codigo_edificio,

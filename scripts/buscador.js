@@ -329,13 +329,14 @@ function performSearch() {
         const inputNormalizado = normalizarBusqueda(selectUserData);
         
         // Validar entrada antes de buscar
+        //Eliminar alertas
         if (!selectUserData) {
-            alert("Por favor, escribe algo para buscar.");
+            //alert("Por favor, escribe algo para buscar.");
             return;
         }
         
         if (!validarInput(selectUserData)) {
-            alert("Entrada invalida. Solo se permiten letras, numeros y espacios.");
+            //alert("Entrada invalida. Solo se permiten letras, numeros y espacios.");
             return;
         }
         
@@ -362,12 +363,13 @@ function performSearch() {
         }
         
         if (!selectedResultado) {
-            alert("No se encontraron coincidencias. Intenta con otro término.");
+            //alert("No se encontraron coincidencias. Intenta con otro término.");
             return;
         }
 
         ejecutarResultadoBusqueda(selectedResultado);
         inputSearch.value = '';
+        inputSearch.dispatchEvent(new Event('input', { bubbles: true }));
         console.log('Resultado encontrado:', selectedResultado.nombre, selectedResultado.tipo_resultado);
         
     } catch (error) {

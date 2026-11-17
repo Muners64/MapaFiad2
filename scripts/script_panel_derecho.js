@@ -1,6 +1,19 @@
 var panel_informacion = document.getElementById('panel_informacion');
 var cerrarpanel = document.getElementById('cerrar-panel');
+
+// Caché en memoria y control de tokens para cancelar cualquier respuesta atrasada
+var cacheDetalleEdificios = new Map();
+var cacheEspaciosEdificios = new Map();
+var cacheCubiculosEdificios = new Map();
+var tokenSeleccionActual = 0;
+var controladorFetchActual = null;
+
 cerrarpanel.addEventListener('click', function () {
+    tokenSeleccionActual++;
+    if (controladorFetchActual) {
+        controladorFetchActual.abort();
+        controladorFetchActual = null;
+    }
     panel_informacion.style.display = 'none';
     panel_informacion.classList.remove('panel-expanded');
     panel_informacion.dataset.panelState = 'collapsed';
@@ -10,11 +23,11 @@ cerrarpanel.addEventListener('click', function () {
 });
 
 var infoTab = document.getElementById('infoTab');
-var interiorTab = document.getElementById('interiorTab');
+// var interiorTab = document.getElementById('interiorTab'); // Plantas deshabilitado temporalmente
 var salonesTab = document.getElementById('salonesTab');
 var cubiculosTab = document.getElementById('cubiculosTab');
 var infoContent = document.getElementById('infoContent');
-var interiorContent = document.getElementById('interiorContent');
+// var interiorContent = document.getElementById('interiorContent'); // Plantas deshabilitado temporalmente
 var salonesContent = document.getElementById('salonesContent');
 var cubiculosContent = document.getElementById('cubiculosContent');
 var panelSheetHeader = document.getElementById('panelSheetHeader');
@@ -43,7 +56,7 @@ function obtenerAlturaViewport() {
 function obtenerAlturaReservadaSuperior() {
     var nav = document.querySelector('.navbar');
     var navBottom = nav ? nav.getBoundingClientRect().bottom : 64;
-    var margenSeguridad = 16; // separación visual mínima respecto a la barra
+    var margenSeguridad = 16;
     return Math.max(0, navBottom) + margenSeguridad;
 }
 
@@ -79,30 +92,6 @@ function aplicarEstadoPanelMovil(estado) {
 
 function esVistaMovilPanel() {
     return panelMovilActivo && panelMovilActivo.matches;
-}
-
-function obtenerTranslateActualPanel() {
-    if (!panel_informacion) return 0;
-    var transform = window.getComputedStyle(panel_informacion).transform;
-    if (!transform || transform === 'none') return 0;
-
-    var matrix = transform.match(/matrix\((.+)\)/);
-    if (matrix && matrix[1]) {
-        var values = matrix[1].split(',');
-        if (values.length === 6) {
-            return parseFloat(values[5]) || 0;
-        }
-    }
-
-    var matrix3d = transform.match(/matrix3d\((.+)\)/);
-    if (matrix3d && matrix3d[1]) {
-        var values3d = matrix3d[1].split(',');
-        if (values3d.length === 16) {
-            return parseFloat(values3d[13]) || 0;
-        }
-    }
-
-    return 0;
 }
 
 function abrirPanelMovil() {
@@ -144,7 +133,7 @@ if (panelMovilActivo && typeof panelMovilActivo.addEventListener === 'function')
 function recalcularAlturaPanelMovil() {
     if (!panel_informacion || !esVistaMovilPanel()) return;
     if (panel_informacion.style.display !== 'block') return;
-    if (panelMovilArrastre.activo) return; // no interferir mientras el usuario arrastra
+    if (panelMovilArrastre.activo) return;
 
     var estadoActual = panel_informacion.classList.contains('panel-expanded') ? 'expanded' : 'partial';
     aplicarEstadoPanelMovil(estadoActual);
@@ -173,7 +162,6 @@ if (panelHandle) {
         }
     });
 }
-
 
 function obtenerCoordenadasEvento(event) {
     if (event.touches && event.touches.length > 0) {
@@ -275,9 +263,8 @@ function finalizarArrastrePanel(event) {
     var alturaActual = panelMovilArrastre.currentHeight;
     var alturaParcial = obtenerAlturaParcialMovil();
     var alturaCompleta = obtenerAlturaCompletaMovil();
-    var velocidad = 0;
     var tiempoTranscurrido = Math.max(1, Date.now() - panelMovilArrastre.lastTime);
-    velocidad = (panelMovilArrastre.lastY - panelMovilArrastre.inicioY) / tiempoTranscurrido;
+    var velocidad = (panelMovilArrastre.lastY - panelMovilArrastre.inicioY) / tiempoTranscurrido;
 
     if (velocidad < -0.7) {
         expandirPanelMovil();
@@ -303,7 +290,6 @@ if (panelSheetHeader) {
     panelSheetHeader.addEventListener('pointermove', moverArrastrePanel);
     panelSheetHeader.addEventListener('pointerup', finalizarArrastrePanel);
     panelSheetHeader.addEventListener('pointercancel', finalizarArrastrePanel);
-
 
     if (!window.PointerEvent) {
         panelSheetHeader.addEventListener('touchstart', iniciarArrastrePanel, { passive: true });
@@ -362,21 +348,23 @@ function aplicarResaltadoEnTab(tab) {
 
 function openTab(tabName) {
     infoContent.style.display = 'none';
-    interiorContent.style.display = 'none';
+    // if (interiorContent) interiorContent.style.display = 'none'; // Plantas deshabilitado
     salonesContent.style.display = 'none';
     cubiculosContent.style.display = 'none';
 
     infoTab.classList.remove('active');
-    interiorTab.classList.remove('active');
+    // if (interiorTab) interiorTab.classList.remove('active'); // Plantas deshabilitado
     salonesTab.classList.remove('active');
     cubiculosTab.classList.remove('active');
 
     if (tabName === 'info') {
         infoContent.style.display = 'block';
         infoTab.classList.add('active');
-    } else if (tabName === 'interior') {
+    /* Plantas deshabilitado temporalmente
+    } else if (tabName === 'interior' && interiorContent && interiorTab) {
         interiorContent.style.display = 'block';
         interiorTab.classList.add('active');
+    */
     } else if (tabName === 'salones') {
         salonesContent.style.display = 'block';
         salonesTab.classList.add('active');
@@ -389,41 +377,36 @@ function openTab(tabName) {
 window.abrirTabPanel = openTab;
 
 infoTab.addEventListener('click', function () { openTab('info'); });
-interiorTab.addEventListener('click', function () { openTab('interior'); });
-// Función auxiliar para extraer el código del edificio
+/* Plantas deshabilitado temporalmente
+if (interiorTab) {
+    interiorTab.addEventListener('click', function () { openTab('interior'); });
+}
+*/
+
 function extraerCodigoEdificio(edificio) {
     if (!edificio) return null;
-    
-
     if (edificio.codigo) return edificio.codigo;
-    
-
     if (edificio.nombre === "Dirección FIAD") return "E33";
-    
-    var match = edificio.nombre.match(/\d+/);
-    if (match) {
-        return "E" + match[0];
-    }
-    
-    return null;
+    var match = String(edificio.nombre || '').match(/\d+/);
+    return match ? ("E" + match[0]) : null;
 }
 
 cubiculosTab.addEventListener('click', function () { 
     openTab('cubiculos');
-    // Cargar cubículos cuando se abre la pestaña
     if (window.edificioActual) {
         var codigo = extraerCodigoEdificio(window.edificioActual);
         if (codigo) {
-            cargarCubiculos(codigo);
+            cargarCubiculos(codigo, tokenSeleccionActual);
         }
     }
 });
+
 salonesTab.addEventListener('click', function () {
     openTab('salones');
     if (window.edificioActual) {
         var codigo = extraerCodigoEdificio(window.edificioActual);
         if (codigo) {
-            cargarSalones(codigo);
+            cargarSalones(codigo, tokenSeleccionActual);
         }
     }
 });
@@ -476,13 +459,21 @@ function renderizarSalonesDesdeEspacios(espacios) {
             salonItem.setAttribute('data-nombre-espacio', esp.nombre_descriptivo || esp.numero_espacio || esp.codigo_completo || '');
             salonItem.setAttribute('data-profesor', esp.profesor_asignado || '');
 
-            var salonCodigo = document.createElement('div');
-            salonCodigo.className = 'salon-codigo';
             var tipo = esp.nombre_tipo ? ('[' + esp.nombre_tipo + '] ') : '';
             var esLaboratorio = Number(esp.id_tipo) === 2;
             var nombre = esLaboratorio
                 ? (esp.nombre_descriptivo || esp.numero_espacio || esp.codigo_completo || 'Laboratorio')
                 : (esp.numero_espacio || esp.codigo_completo || esp.nombre_descriptivo || 'Espacio');
+
+            if (esp.id_horario && Number(esp.id_horario) > 0) {
+                salonItem.setAttribute('data-id-horario', esp.id_horario);
+                salonItem.setAttribute('data-nombre-salon', (esp.codigo_completo ? esp.codigo_completo + ' - ' : '') + nombre);
+                salonItem.style.cursor = 'pointer';
+                salonItem.title = 'Clic para ver horario';
+            }
+
+            var salonCodigo = document.createElement('div');
+            salonCodigo.className = 'salon-codigo';
             salonCodigo.textContent = tipo + nombre;
 
             salonItem.appendChild(salonCodigo);
@@ -495,184 +486,254 @@ function renderizarSalonesDesdeEspacios(espacios) {
     aplicarResaltadoEnTab('salones');
 }
 
-function mostrarCargandoSalones() {
-    var salonesContainer = document.getElementById('salonesContent');
-    var salonesList = salonesContainer.getElementsByTagName('ul')[0];
-    salonesList.innerHTML = '<li class="salon-mensaje-vacio">Cargando espacios del edificio...</li>';
+function establecerEstadoSkeletonTarjeta(cargando) {
+    var contenedor = document.querySelector('.contenedor_edificio_info');
+    var infoEl = document.getElementById('edificioInfo');
+    var infoTabContent = document.getElementById('infoContent');
+    var panelScroll = document.getElementById('contenedor_panel_info');
+    if (!contenedor) return;
+
+    if (cargando) {
+        if (infoEl) infoEl.textContent = '';
+        if (infoTabContent) infoTabContent.scrollTop = 0;
+        if (panelScroll) panelScroll.scrollTop = 0;
+        contenedor.classList.add('is-loading');
+    } else {
+        contenedor.classList.remove('is-loading');
+    }
 }
 
-function aplicarImagenConFallback(imgElement, rutaImagen) {
-    if (!imgElement) return;
-
-    var rutas = [];
-    var rutaNormalizada = String(rutaImagen || '').trim();
-
-    if (rutaNormalizada) {
-        rutas.push(rutaNormalizada);
-
-        if (rutaNormalizada.indexOf('img/') === 0) {
-            var nombreArchivo = rutaNormalizada.slice(4);
-            if (nombreArchivo) {
-                rutas.push('img/' + nombreArchivo.charAt(0).toUpperCase() + nombreArchivo.slice(1));
-                rutas.push('img/' + nombreArchivo.charAt(0).toLowerCase() + nombreArchivo.slice(1));
-            }
-        }
+function aplicarImagenSegura(imgElement, rutaImagen, tokenEsperado, onListo) {
+    if (!imgElement) {
+        if (typeof onListo === 'function') onListo();
+        return;
     }
 
-    var probadas = {};
-    rutas = rutas.filter(function (ruta) {
-        if (!ruta || probadas[ruta]) return false;
-        probadas[ruta] = true;
-        return true;
-    });
+    var ruta = String(rutaImagen || '').trim() || 'img/prueba.jpg';
+    var preloader = new Image();
 
-    if (rutas.length === 0) {
-        imgElement.src = 'img/prueba.jpg';
-        return;
+    preloader.onload = function () {
+        if (tokenEsperado !== tokenSeleccionActual) return;
+        imgElement.src = ruta;
+        imgElement.style.display = 'block';
+        if (typeof onListo === 'function') onListo();
     };
 
-    var indice = 0;
+    preloader.onerror = function () {
+        if (tokenEsperado !== tokenSeleccionActual) return;
+        imgElement.src = 'img/prueba.jpg';
+        imgElement.style.display = 'block';
+        if (typeof onListo === 'function') onListo();
+    };
 
-    function intentarSiguiente() {
-        if (indice >= rutas.length) {
-            imgElement.onerror = null;
-            imgElement.src = 'img/prueba.jpg';
-            return;
-        }
-
-        var ruta = rutas[indice++];
-        imgElement.onerror = function () {
-            intentarSiguiente();
-        };
-        imgElement.src = ruta;
-    }
-
-    intentarSiguiente();
+    preloader.src = ruta;
 }
 
-function cargarSalones(codigoEdificio) {
-    mostrarCargandoSalones();
+/* Plantas deshabilitado temporalmente
+function actualizarVisibilidadPlantas(imagenesPlanos, pisos) {
+    if (!interiorTab || !interiorContent) return;
+
+    var planosValidos = (imagenesPlanos || []).filter(function (url) {
+        return url && String(url).trim() !== '' && String(url).indexOf('prueba.jpg') === -1;
+    });
+
+    if (planosValidos.length === 0) {
+        interiorTab.style.display = 'none';
+        if (interiorContent.style.display === 'block') {
+            openTab('info');
+        }
+        return;
+    }
+
+    interiorTab.style.display = '';
+    cargarBotonesPisos({
+        pisos: Math.max(Number(pisos || 0), planosValidos.length),
+        imagenes: planosValidos,
+        imagen: planosValidos[0]
+    });
+}
+*/
+
+function cargarSalones(codigoEdificio, tokenEsperado) {
+    var token = tokenEsperado || tokenSeleccionActual;
+
+    if (cacheEspaciosEdificios.has(codigoEdificio)) {
+        var espCached = cacheEspaciosEdificios.get(codigoEdificio);
+        renderizarSalonesDesdeEspacios(espCached);
+        if (typeof window.mostrarEspaciosEnMapa === 'function' && window.edificioActual) {
+            window.mostrarEspaciosEnMapa(window.edificioActual, espCached);
+        }
+        return;
+    }
+
+    var salonesContainer = document.getElementById('salonesContent');
+    var salonesList = salonesContainer.getElementsByTagName('ul')[0];
+    salonesList.innerHTML = '<div class="spinner-lista-centro"></div>';
+
     var apiUrl = construirUrlApi('espacios.php?edificio=' + encodeURIComponent(codigoEdificio) + '&limit=200');
 
     fetch(apiUrl)
         .then(function (response) { return response.json(); })
         .then(function (data) {
-            if (data.success && Array.isArray(data.espacios)) {
-                var espaciosAcad = data.espacios.filter(function (esp) {
+            var espaciosAcad = (data.success && Array.isArray(data.espacios))
+                ? data.espacios.filter(function (esp) {
                     var tipo = Number(esp.id_tipo);
                     return tipo === 1 || tipo === 2 || tipo === 3;
-                });
+                })
+                : [];
 
-                renderizarSalonesDesdeEspacios(espaciosAcad);
+            cacheEspaciosEdificios.set(codigoEdificio, espaciosAcad);
 
-                if (typeof window.mostrarEspaciosEnMapa === 'function' && window.edificioActual) {
-                    window.mostrarEspaciosEnMapa(window.edificioActual, espaciosAcad);
-                }
-            } else {
-                renderizarSalonesDesdeEspacios([]);
+            if (token !== tokenSeleccionActual) return;
+
+            renderizarSalonesDesdeEspacios(espaciosAcad);
+            if (typeof window.mostrarEspaciosEnMapa === 'function' && window.edificioActual) {
+                window.mostrarEspaciosEnMapa(window.edificioActual, espaciosAcad);
             }
         })
         .catch(function (error) {
-            console.error('Error al cargar salones/laboratorios/talleres:', error);
-            renderizarSalonesDesdeEspacios([]);
+            if (error && error.name === 'AbortError') return;
+            console.error('Error al cargar salones:', error);
+            if (token === tokenSeleccionActual) {
+                renderizarSalonesDesdeEspacios([]);
+            }
         });
 }
 
+function aplicarDatosEdificioEnDOM(ed, edificioBase, token) {
+    if (token !== tokenSeleccionActual) return;
+
+    document.getElementById('edificioNombre').innerText = ed.nombre_comun || edificioBase.nombre;
+    document.getElementById('edificioInfo').innerText = ed.descripcion || 'Sin descripción disponible.';
+
+    var imagenPrincipal = ed.foto_principal_url || 'img/prueba.jpg';
+    aplicarImagenSegura(document.getElementById('edificioImagen'), imagenPrincipal, token, function () {
+        establecerEstadoSkeletonTarjeta(false);
+    });
+
+    /* Plantas deshabilitado temporalmente
+    var imagenesPlanos = [];
+    if (Array.isArray(ed.imagenes) && ed.imagenes.length > 0) {
+        imagenesPlanos = ed.imagenes
+            .filter(function (img) {
+                var tipo = String(img.tipo_imagen || '').toLowerCase();
+                return tipo === 'plano' || tipo === 'planta' || Number(img.orden) > 1;
+            })
+            .sort(function (a, b) { return Number(a.orden) - Number(b.orden); })
+            .map(function (img) { return img.url; });
+    }
+
+    actualizarVisibilidadPlantas(imagenesPlanos, ed.numero_pisos);
+    if (imagenesPlanos.length > 0) {
+        aplicarImagenSegura(document.getElementById('interiorImagen'), imagenesPlanos[0], token);
+    }
+    */
+
+    if (ed.latitud && ed.longitud) {
+        edificioBase._coordsAPI = [parseFloat(ed.latitud), parseFloat(ed.longitud)];
+    }
+}
 
 function mostrarPanelEdificio(edificio) {
-    // Guardar referencia al edificio actual para la pestaña de cubículos
+    // 1. Invalidar cualquier clic/petición anterior al instante
+    var miToken = ++tokenSeleccionActual;
+    if (controladorFetchActual) {
+        controladorFetchActual.abort();
+    }
+    controladorFetchActual = new AbortController();
+    var signal = controladorFetchActual.signal;
+
     window.edificioActual = edificio;
 
-    // Resetear cubículos al cambiar de edificio
+    // Resetear listas internas
     document.getElementById('cubiculosList').innerHTML = '';
     document.getElementById('cubiculosLoading').style.display = 'none';
+    // actualizarVisibilidadPlantas([], 0); // Plantas deshabilitado temporalmente
 
-    if (cubiculosContent.style.display === 'block') {
-        var codigo = extraerCodigoEdificio(edificio);
-        if (codigo) cargarCubiculos(codigo);
-    }
+    var codigoAPI = extraerCodigoEdificio(edificio);
 
-    if (salonesContent.style.display === 'block') {
-        var codigoSalones = extraerCodigoEdificio(edificio);
-        if (codigoSalones) cargarSalones(codigoSalones);
-    }
-
-    renderizarSalonesDesdeEspacios([]);
-    var imagenPrincipalInicial = edificio.imagen || 'img/prueba.jpg';
-    aplicarImagenConFallback(document.getElementById('edificioImagen'), imagenPrincipalInicial);
-    aplicarImagenConFallback(document.getElementById('interiorImagen'), imagenPrincipalInicial);
+    // Abrir panel de inmediato
     document.getElementById('edificioImagen').alt = edificio.nombre;
     document.getElementById('edificioNombre').innerText = edificio.nombre;
-    document.getElementById('edificioInfo').innerText = edificio.info || 'Sin descripción disponible.';
     panel_informacion.style.display = 'block';
     panel_informacion.dataset.panelState = esVistaMovilPanel() ? 'partial' : 'expanded';
+
     if (esVistaMovilPanel()) {
         requestAnimationFrame(function () {
-            abrirPanelMovil();
+            if (miToken === tokenSeleccionActual) abrirPanelMovil();
         });
     } else {
         panel_informacion.classList.remove('panel-expanded');
         panel_informacion.classList.remove('panel-partial');
     }
-    cargarBotonesPisos({ pisos: edificio.pisos || 0, imagenes: [], imagen: imagenPrincipalInicial });
 
-    var codigoAPI = extraerCodigoEdificio(edificio);
-    if (codigoAPI) {
-        var urlEdificio = construirUrlApi('edificios.php?codigo=' + encodeURIComponent(codigoAPI));
-        var urlEspacios = construirUrlApi('espacios.php?edificio=' + encodeURIComponent(codigoAPI) + '&limit=200');
+    if (cubiculosContent.style.display === 'block' && codigoAPI) {
+        cargarCubiculos(codigoAPI, miToken);
+    }
 
-        Promise.all([
-            fetch(urlEdificio).then(function (r) { return r.json(); }),
-            fetch(urlEspacios).then(function (r) { return r.json(); })
-        ])
-            .then(function (responses) {
-                var dataEdificio = responses[0];
-                var dataEspacios = responses[1];
+    // Si ya está en caché en memoria: renderizado instantáneo (0 ms, 0 fetch)
+    if (codigoAPI && cacheDetalleEdificios.has(codigoAPI)) {
+        var edCached = cacheDetalleEdificios.get(codigoAPI);
+        aplicarDatosEdificioEnDOM(edCached, edificio, miToken);
 
-                if (dataEdificio.success && dataEdificio.edificio) {
-                    var ed = dataEdificio.edificio;
-                    document.getElementById('edificioNombre').innerText = ed.nombre_comun || edificio.nombre;
-                    document.getElementById('edificioInfo').innerText = ed.descripcion || 'Sin descripción disponible.';
+        if (cacheEspaciosEdificios.has(codigoAPI)) {
+            var espCached = cacheEspaciosEdificios.get(codigoAPI);
+            renderizarSalonesDesdeEspacios(espCached);
+            if (typeof window.mostrarEspaciosEnMapa === 'function') {
+                window.mostrarEspaciosEnMapa(edificio, espCached);
+            }
+        } else {
+            cargarSalones(codigoAPI, miToken);
+        }
+    } else {
+        // Mostrar spinner limpio mientras llega la única petición de detalle + espacios
+        establecerEstadoSkeletonTarjeta(true);
 
-                    var imagenPrincipal = ed.foto_principal_url || edificio.imagen || 'img/prueba.jpg';
-                    aplicarImagenConFallback(document.getElementById('edificioImagen'), imagenPrincipal);
+        if (codigoAPI) {
+            var urlEdificio = construirUrlApi('edificios.php?codigo=' + encodeURIComponent(codigoAPI));
+            var urlEspacios = construirUrlApi('espacios.php?edificio=' + encodeURIComponent(codigoAPI) + '&limit=200');
 
-                    var imagenesOrdenadas = [];
-                    if (Array.isArray(ed.imagenes) && ed.imagenes.length > 0) {
-                        imagenesOrdenadas = ed.imagenes
-                            .slice()
-                            .sort(function (a, b) { return Number(a.orden) - Number(b.orden); })
-                            .map(function (img) { return img.url; });
+            Promise.all([
+                fetch(urlEdificio, { signal: signal }).then(function (r) { return r.json(); }),
+                fetch(urlEspacios, { signal: signal }).then(function (r) { return r.json(); })
+            ])
+                .then(function (responses) {
+                    var dataEdificio = responses[0];
+                    var dataEspacios = responses[1];
+
+                    if (dataEdificio.success && dataEdificio.edificio) {
+                        cacheDetalleEdificios.set(codigoAPI, dataEdificio.edificio);
                     }
 
-                    aplicarImagenConFallback(document.getElementById('interiorImagen'), imagenesOrdenadas[1] || imagenesOrdenadas[0] || imagenPrincipal);
+                    var espaciosAcad = (dataEspacios.success && Array.isArray(dataEspacios.espacios))
+                        ? dataEspacios.espacios.filter(function (esp) {
+                            var tipo = Number(esp.id_tipo);
+                            return tipo === 1 || tipo === 2 || tipo === 3;
+                        })
+                        : [];
+                    cacheEspaciosEdificios.set(codigoAPI, espaciosAcad);
 
-                    cargarBotonesPisos({
-                        pisos: Number(ed.numero_pisos || 0),
-                        imagenes: imagenesOrdenadas,
-                        imagen: imagenPrincipal
-                    });
+                    if (miToken !== tokenSeleccionActual) return;
 
-                    if (ed.latitud && ed.longitud && ed.codigo === codigoAPI) {
-                        edificio._coordsAPI = [parseFloat(ed.latitud), parseFloat(ed.longitud)];
+                    if (dataEdificio.success && dataEdificio.edificio) {
+                        aplicarDatosEdificioEnDOM(dataEdificio.edificio, edificio, miToken);
+                    } else {
+                        establecerEstadoSkeletonTarjeta(false);
                     }
-                }
 
-                if (dataEspacios.success && Array.isArray(dataEspacios.espacios)) {
-                    var espaciosAcad = dataEspacios.espacios.filter(function (esp) {
-                        var tipo = Number(esp.id_tipo);
-                        return tipo === 1 || tipo === 2 || tipo === 3;
-                    });
                     renderizarSalonesDesdeEspacios(espaciosAcad);
-
                     if (typeof window.mostrarEspaciosEnMapa === 'function') {
                         window.mostrarEspaciosEnMapa(edificio, espaciosAcad);
                     }
-                }
-            })
-            .catch(function (error) {
-                console.error('No se pudo cargar detalle de edificio desde API:', error);
-            });
+                })
+                .catch(function (error) {
+                    if (error && error.name === 'AbortError') return;
+                    console.error('No se pudo cargar detalle de edificio desde API:', error);
+                    if (miToken === tokenSeleccionActual) {
+                        establecerEstadoSkeletonTarjeta(false);
+                    }
+                });
+        }
     }
 
     document.getElementById('btn_direcciones').onclick = function () {
@@ -685,7 +746,7 @@ function mostrarPanelEdificio(edificio) {
                 map.removeLayer(endMarker);
             }
             endMarker = L.marker(endPoint, { draggable: true }).addTo(map);
-            endMarker.on('dragend', () => {
+            endMarker.on('dragend', function () {
                 endPoint = endMarker.getLatLng();
                 updateRoute();
             });
@@ -695,8 +756,10 @@ function mostrarPanelEdificio(edificio) {
     };
 }
 
+/* Plantas deshabilitado temporalmente
 function cargarBotonesPisos(edificio) {
     var container = document.getElementById('floorButtonsContainer');
+    if (!container) return;
     container.innerHTML = '';
 
     if (edificio.pisos && edificio.pisos > 0) {
@@ -704,12 +767,12 @@ function cargarBotonesPisos(edificio) {
 
         for (var i = 0; i < edificio.pisos; i++) {
             var boton = document.createElement('button');
-            boton.textContent = (i + 1); // Numerar los pisos
+            boton.textContent = (i + 1);
             boton.classList.add('floor-button');
 
             boton.addEventListener('click', function (imagen) {
                 return function () {
-                    document.getElementById('interiorImagen').src = imagen;
+                    aplicarImagenSegura(document.getElementById('interiorImagen'), imagen, tokenSeleccionActual);
                 };
             }(imagenesPisos[i] || edificio.imagen));
 
@@ -717,77 +780,88 @@ function cargarBotonesPisos(edificio) {
         }
     }
 }
+*/
 
-// Cubiculos
-
-//Carga los cubículos de un edificio desde la API
-
-function cargarCubiculos(codigoEdificio) {
+function cargarCubiculos(codigoEdificio, tokenEsperado) {
+    var token = tokenEsperado || tokenSeleccionActual;
     var cubiculosList = document.getElementById('cubiculosList');
     var loadingDiv = document.getElementById('cubiculosLoading');
-    
-    loadingDiv.style.display = 'block';
-    cubiculosList.innerHTML = '';
-    
-    // Llamar a la API con URL dinámica según donde esté el proyecto
+
+    if (cacheCubiculosEdificios.has(codigoEdificio)) {
+        loadingDiv.style.display = 'none';
+        var cubCached = cacheCubiculosEdificios.get(codigoEdificio);
+        if (cubCached.length > 0) {
+            mostrarCubiculos(cubCached);
+        } else {
+            cubiculosList.innerHTML = '<li class="cubiculo-mensaje-vacio">No hay cubículos registrados en este edificio.</li>';
+        }
+        return;
+    }
+
+    loadingDiv.style.display = 'none';
+    cubiculosList.innerHTML = '<div class="spinner-lista-centro"></div>';
+
     var basePath = window.location.pathname.replace(/\/[^\/]*$/, '');
-    var apiUrl = window.location.origin + basePath + '/api/espacios.php?tipo=4&edificio=' + codigoEdificio;
+    var apiUrl = window.location.origin + basePath + '/api/espacios.php?tipo=4&edificio=' + encodeURIComponent(codigoEdificio);
+
     fetch(apiUrl)
-        .then(response => response.json())
-        .then(data => {
-            loadingDiv.style.display = 'none';
-            
-            if (data.success && data.espacios && data.espacios.length > 0) {
-                mostrarCubiculos(data.espacios);
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+            var lista = (data.success && Array.isArray(data.espacios)) ? data.espacios : [];
+            cacheCubiculosEdificios.set(codigoEdificio, lista);
+
+            if (token !== tokenSeleccionActual) return;
+
+            if (lista.length > 0) {
+                mostrarCubiculos(lista);
             } else {
                 cubiculosList.innerHTML = '<li class="cubiculo-mensaje-vacio">No hay cubículos registrados en este edificio.</li>';
             }
         })
-        .catch(error => {
+        .catch(function (error) {
+            if (error && error.name === 'AbortError') return;
             console.error('Error al cargar cubículos:', error);
-            loadingDiv.style.display = 'none';
-            cubiculosList.innerHTML = '<li class="cubiculo-mensaje-vacio" style="color: #e94560;">Error al cargar cubículos. Intenta de nuevo.</li>';
+            if (token === tokenSeleccionActual) {
+                cubiculosList.innerHTML = '<li class="cubiculo-mensaje-vacio" style="color: #e94560;">Error al cargar cubículos. Intenta de nuevo.</li>';
+            }
         });
 }
-
 
 function mostrarCubiculos(cubiculos) {
     var cubiculosList = document.getElementById('cubiculosList');
     cubiculosList.innerHTML = '';
-    
-    // Agrupar por piso
+
     var cubiculosPorPiso = {};
-    cubiculos.forEach(function(cubiculo) {
+    cubiculos.forEach(function (cubiculo) {
         var piso = cubiculo.nivel_piso || 0;
         if (!cubiculosPorPiso[piso]) {
             cubiculosPorPiso[piso] = [];
         }
         cubiculosPorPiso[piso].push(cubiculo);
     });
-    
-    // Ordenar pisos
-    var pisos = Object.keys(cubiculosPorPiso).sort((a, b) => a - b);
-    
-    pisos.forEach(function(piso) {
+
+    var pisos = Object.keys(cubiculosPorPiso).sort(function (a, b) { return a - b; });
+
+    pisos.forEach(function (piso) {
         var pisoDiv = document.createElement('div');
         pisoDiv.className = 'cubiculo-piso';
-        
+
         var pisoHeader = document.createElement('h3');
         pisoHeader.className = 'cubiculo-piso-titulo';
-        pisoHeader.textContent = piso == 0 ? 'Planta Baja' : `Piso ${piso}`;
+        pisoHeader.textContent = piso == 0 ? 'Planta Baja' : ('Piso ' + piso);
         pisoDiv.appendChild(pisoHeader);
-        
-        cubiculosPorPiso[piso].forEach(function(cubiculo) {
+
+        cubiculosPorPiso[piso].forEach(function (cubiculo) {
             var cubiculoItem = document.createElement('div');
             cubiculoItem.className = 'cubiculo-item';
             cubiculoItem.setAttribute('data-codigo-espacio', cubiculo.codigo_completo || cubiculo.numero_espacio || '');
             cubiculoItem.setAttribute('data-nombre-espacio', cubiculo.numero_espacio || cubiculo.codigo_completo || '');
             cubiculoItem.setAttribute('data-profesor', cubiculo.profesor_asignado || '');
-            
+
             var codigoDiv = document.createElement('div');
             codigoDiv.className = 'cubiculo-codigo';
             codigoDiv.textContent = cubiculo.numero_espacio || cubiculo.codigo_completo;
-            
+
             var profesorDiv = document.createElement('div');
             if (cubiculo.profesor_asignado) {
                 profesorDiv.className = 'cubiculo-profesor';
@@ -796,13 +870,12 @@ function mostrarCubiculos(cubiculos) {
                 profesorDiv.className = 'cubiculo-profesor cubiculo-sin-profesor';
                 profesorDiv.textContent = 'Sin profesor asignado';
             }
-            
+
             cubiculoItem.appendChild(codigoDiv);
             cubiculoItem.appendChild(profesorDiv);
-            
             pisoDiv.appendChild(cubiculoItem);
         });
-        
+
         cubiculosList.appendChild(pisoDiv);
     });
 
@@ -826,9 +899,9 @@ window.buscarYResaltarEnPanel = function (opciones) {
         var codigo = extraerCodigoEdificio(window.edificioActual);
         if (codigo) {
             if (tab === 'cubiculos') {
-                cargarCubiculos(codigo);
+                cargarCubiculos(codigo, tokenSeleccionActual);
             } else {
-                cargarSalones(codigo);
+                cargarSalones(codigo, tokenSeleccionActual);
             }
         }
     }
@@ -837,4 +910,3 @@ window.buscarYResaltarEnPanel = function (opciones) {
         aplicarResaltadoEnTab(tab);
     }, 400);
 };
-

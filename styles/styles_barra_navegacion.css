@@ -12,12 +12,14 @@
     --accent-green: #2da832;
     --accent-orange: #f59e0b;
     --shadow-soft: 0 2px 10px rgba(0,0,0,0.05);
-}
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+    /* ===== Control del buscador (un solo lugar) =====
+       --divider-gap  : espacio de BORDE A BORDE entre cada ícono y la línea "|"
+       --actions-right: distancia de la lupa al borde derecho del buscador
+       --divider-color: color de la línea                                       */
+    --divider-gap: 12px;
+    --actions-right: 16px;
+    --divider-color: #7b8696; /* color sólido: se ve igual en PC y móvil */
 }
 
 body {
@@ -26,8 +28,6 @@ body {
     height: 100vh;
     overflow: hidden;
 }
-
-
 
 .logo_espace img {
     max-height: 50px;
@@ -47,20 +47,6 @@ body {
     margin-left: 12px;
     letter-spacing: -0.5px;
 }
-
-@media screen and (max-width: 480px) {
-    .logo_espace img {
-        max-height: 40px;
-        margin-left: 0;
-    }
-    
-    .uabc-text {
-        font-size: 1.2rem;
-        margin-left: 8px;
-    }
-}
-
-
 
 .navbar {
     margin: 0;
@@ -98,12 +84,12 @@ body {
     height: 100%;
 }
 
-.img-responsive{
+.img-responsive {
     max-width: 85%;
     align-self: center;
 }
 
-.logo_espace{
+.logo_espace {
     align-items: center;
     display: flex;
     gap: 10px;
@@ -113,6 +99,154 @@ body {
     flex-grow: 1;
     margin: 0 20px;
     max-width: 500px;
+    position: relative;
+    border-radius: 25px;
+    transition: box-shadow 0.2s ease;
+}
+
+
+/* Ocultar botón nativo de limpiar de type="search" */
+.search-input-box input::-webkit-search-cancel-button,
+.search-input-box input::-webkit-search-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+}
+
+/* Espacio a la derecha para limpiar + lupa y sin contorno propio en el input */
+.search-input-box input {
+    padding-right: 100px !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.search-input-box input:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Lupa en blanco cuando está desplegado (invierte a negro al colapsar) */
+.navbar:not(.search-collapsed) .search-input-box .search-button .icon,
+.navbar:not(.search-collapsed) .search-input-box .search-button i {
+    color: #ffffff !important;
+    transition: color 0.25s ease;
+}
+
+/* Contenedor flex: [ borrar ][ | ][ lupa ] pegado a la derecha del input.
+   Los huecos los define --divider-gap, medidos de borde a borde de cada ícono. */
+.search-actions {
+    position: absolute;
+    top: 50%;
+    right: var(--actions-right);
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    z-index: 6;
+}
+
+/* Lupa: tamaño propio e idéntico en PC y móvil, ignorando otros CSS */
+.search-input-box .search-actions .search-button {
+    position: static !important;
+    inset: auto !important;
+    transform: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: auto !important;
+    height: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 auto;
+}
+
+.search-input-box .search-actions .search-button .icon,
+.search-input-box .search-actions .search-button i {
+    position: static !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+    font-size: 20px !important;
+    line-height: 1 !important;
+    width: 1em;
+    text-align: center;
+}
+
+/* Quitar el subrayado morado del enlace de la lupa */
+.search-input-box .search-actions .search-button,
+.search-input-box .search-actions .search-button:link,
+.search-input-box .search-actions .search-button:visited,
+.search-input-box .search-actions .search-button:hover,
+.search-input-box .search-actions .search-button:active,
+.search-input-box .search-actions .search-button:focus,
+.search-input-box .search-actions .search-button *,
+.search-input-box .search-actions .search-button *::before,
+.search-input-box .search-actions .search-button *::after {
+    text-decoration: none !important;
+    border-bottom: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Botón de borrar: ajustado al tamaño de su ícono, sin padding */
+.search-clear-btn {
+    position: relative;
+    flex: 0 0 auto;
+    width: auto;
+    height: 20px;
+    border: none;
+    background: transparent;
+    color: #ffffff;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.2s, transform 0.15s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Separador "|": mismo hueco a ambos lados. Solo se ve si hay botón de borrar. */
+.search-divider {
+    display: none;
+    flex: 0 0 1px;
+    width: 1px;
+    height: 20px;
+    margin: 0 var(--divider-gap);
+    background: var(--divider-color);
+    pointer-events: none;
+}
+
+.search-clear-btn.visible + .search-divider {
+    display: block;
+}
+
+/* La X de escritorio trae ~5px de aire interno en su SVG; se compensa
+   para que el hueco VISIBLE sea igual al de la lupa. */
+.search-clear-btn .icon-clear-desktop { margin-right: -5px; }
+.search-clear-btn .icon-clear-mobile  { margin-right: -1px; }
+
+.search-clear-btn.visible {
+    display: flex;
+}
+
+.search-clear-btn:hover,
+.search-clear-btn:active {
+    color: #ffffff;
+    transform: scale(0.92);
+}
+
+/* Escritorio: mostrar X fina y ocultar retroceso móvil */
+.search-clear-btn .icon-clear-desktop {
+    display: block;
+}
+
+.search-clear-btn .icon-clear-mobile {
+    display: none;
+}
+
+/* Botón de colapso oculto en escritorio */
+.search-collapse-btn {
+    display: none;
 }
 
 .container-suggestions li.highlight {
@@ -130,7 +264,6 @@ body {
     padding: 15%;
 }
 
-
 @media screen and (max-width: 768px) {
     .navbar {
         height: auto;
@@ -146,23 +279,59 @@ body {
         background: rgba(255, 255, 255, 0.94);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
         position: fixed;
         z-index: 300;
+        transition: all 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* Botón X superior derecho para colapsar el buscador en móvil */
+    .search-collapse-btn {
+        position: absolute;
+        top: 10px;
+        right: 12px;
+        width: 36px;
+        height: 36px;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: var(--text-dark);
+        font-size: 24px;
+        line-height: 1;
+        font-weight: 700;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.2s, transform 0.1s;
+        z-index: 10;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .search-collapse-btn:hover {
+        color: var(--text-gray);
+    }
+
+    .search-collapse-btn:active {
+        transform: scale(0.92);
     }
     
     .logo_espace {
         justify-content: center;
         width: 100%;
-        margin-bottom: 5px;
+        padding: 0 38px;
+        margin-bottom: 2px;
+        transition: all 0.25s ease;
     }
 
     .logo_espace img {
         margin-left: 0;
-        max-height: 45px;
+        max-height: 42px;
     }
 
     .uabc-text {
-        font-size: 1.3rem;
+        font-size: 1.25rem;
         margin-left: 10px;
     }
 
@@ -170,12 +339,103 @@ body {
         width: 100% !important;
         max-width: 100% !important;
         margin: 0;
+        transition: all 0.28s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
-    .img-responsive{
+    /* Móvil: cambiar botón de borrar a tecla retroceso de contorno fino */
+    .search-clear-btn .icon-clear-desktop {
+        display: none;
+    }
+
+    .search-clear-btn .icon-clear-mobile {
+        display: block;
+    }
+
+    /* ============================================================
+       ESTADO COLAPSADO EN MÓVIL: Ícono flotante arriba a la derecha
+       ============================================================ */
+    .navbar.search-collapsed {
+        left: auto !important;
+        right: 14px !important;
+        top: 12px !important;
+        width: 48px !important;
+        height: 48px !important;
+        min-height: 48px !important;
+        padding: 0 !important;
+        border-radius: 12px !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: #ffffff !important;
+        border: 1px solid #e0e0e0 !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+        overflow: hidden;
+    }
+
+    .navbar.search-collapsed .logo_espace,
+    .navbar.search-collapsed .search-collapse-btn,
+    .navbar.search-collapsed .search-clear-btn,
+    .navbar.search-collapsed .search-divider,
+    .navbar.search-collapsed .search-input-box input,
+    .navbar.search-collapsed .container-suggestions {
+        display: none !important;
+    }
+
+    .navbar.search-collapsed .search-input-box {
+        width: 100% !important;
+        height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    .navbar.search-collapsed .search-actions {
+        position: static !important;
+        right: auto !important;
+        transform: none !important;
+        width: 100% !important;
+        height: 100% !important;
+        justify-content: center !important;
+    }
+
+    .navbar.search-collapsed .search-input-box .search-button {
+        position: static !important;
+        inset: auto !important;
+        top: auto !important;
+        right: auto !important;
+        bottom: auto !important;
+        left: auto !important;
+        transform: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: transparent !important;
+        border: none !important;
+        text-decoration: none !important;
+    }
+
+    .navbar.search-collapsed .search-input-box .search-button .icon,
+    .navbar.search-collapsed .search-input-box .search-button i {
+        position: static !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        transform: none !important;
+        color: #1a1a1a !important;
+        font-size: 1.25rem !important;
+        line-height: 1 !important;
+    }
+
+    .img-responsive {
         max-width: 95%;
     }
-
 }
 
 @media screen and (max-width: 480px) {
@@ -187,10 +447,17 @@ body {
     }
 
     .logo_espace img {
-        max-height: 40px;
+        max-height: 38px;
     }
 
     .uabc-text {
         font-size: 1.1rem;
+    }
+
+    .navbar.search-collapsed {
+        right: 10px;
+        top: 10px;
+        width: 50px;
+        height: 50px;
     }
 }

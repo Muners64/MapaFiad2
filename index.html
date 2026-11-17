@@ -9,12 +9,15 @@
     <title>Mapa FIAD</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&display=swap">
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" onerror="this.onerror=null; this.href='libs/leaflet/leaflet.css'" />
-    <link rel="stylesheet" href="styles/styles_barra_navegacion.css?v=21">
-    <link rel="stylesheet" href="styles/styles_btn_laterales.css?v=21">
-    <link rel="stylesheet" href="styles/styles_panel_derecho.css?v=23">
+    <link rel="stylesheet" href="styles/styles_barra_navegacion.css?v=31">
+    <link rel="stylesheet" href="styles/styles_btn_laterales.css?v=22">
+    <link rel="stylesheet" href="styles/styles_panel_derecho.css?v=24">
     <link rel="stylesheet" href="styles/styles_etiquetas.css?v=21">
     <link rel="stylesheet" href="styles/styles_rutas.css?v=21"> 
     <link rel="stylesheet" href="styles/styles_suggestion.css?v=21">
+    <link rel="stylesheet" href="styles/styles_location.css?v=22">
+    <link rel="stylesheet" href="styles/styles_config.css?v=1">
+    <link rel="stylesheet" href="styles/styles_horario.css?v=1">
     <style>
         html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
         #mapContainer {
@@ -34,7 +37,6 @@
             width: 100% !important;
             height: 100% !important;
         }
-
 
         @media screen and (max-width: 768px) {
             #mapContainer {
@@ -59,39 +61,67 @@
 </head>
 
 <body>
+  
 
     <!-- Barra de navegacion -->
+    <nav class="navbar">
+        <button type="button" id="btn-toggle-search" class="search-collapse-btn" aria-label="Minimizar buscador" title="Minimizar buscador">&times;</button>
 
-        <nav class="navbar">
-            <div class="logo_espace">
-                <a href="http://fiad.ens.uabc.mx/index.php"><img src="img/logo_FIAD2.png" alt="imagen_logo"/></a>
-                <span class="uabc-text">FIAD</span>
+        <div class="logo_espace">
+            <a href="http://fiad.ens.uabc.mx/index.php"><img src="img/logo_FIAD2.png" alt="imagen_logo"/></a>
+            <span class="uabc-text">FIAD</span>
+        </div>
+
+        <div class="search-input-box">
+            <input 
+                type="search" 
+                name="fiad_map_search_field" 
+                id="fiad-search-input"
+                role="searchbox"
+                inputmode="search"
+                placeholder="¿A dónde quieres ir?" 
+                autocomplete="one-time-code" 
+                autocorrect="off" 
+                autocapitalize="off" 
+                spellcheck="false" 
+            />
+            <div class="search-actions">
+            <button type="button" id="btn-clear-search" class="search-clear-btn" aria-label="Borrar búsqueda" title="Borrar texto">
+                <svg class="icon-clear-desktop" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+                <svg class="icon-clear-mobile" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path>
+                    <line x1="18" y1="9" x2="12" y2="15"></line>
+                    <line x1="12" y1="9" x2="18" y2="15"></line>
+                </svg>
+            </button>
+            <span class="search-divider" aria-hidden="true"></span>
+            <a href="#" class="search-button" aria-label="Buscar">
+                <i class="fa-solid fa-magnifying-glass icon"> </i>
+            </a>
             </div>
-            
-            <div class="search-input-box">
-                <input type="text" placeholder="¿A dónde quieres ir?" />
-                <a href="#" class="search-button">
-                    <i class="fa-solid fa-magnifying-glass icon"> </i>
-                </a>
-                <ul class="container-suggestions">
-                    <li>sugerencia 1</li>
-                    <li>sugerencia 2</li>
-                    <li>sugerencia 3</li>
-                </ul>
-            </div>
-        </nav>
-
-
+            <ul class="container-suggestions">
+                <li>sugerencia 1</li>
+                <li>sugerencia 2</li>
+                <li>sugerencia 3</li>
+            </ul>
+        </div>
+    </nav>
 
     <!-- Botones Laterales -->
     <div class="botones_laterales">
+        <!-- Botones anteriores deshabilitados
         <button id="btn_zoom_mas" class="lateral-btn"><ion-icon name="add-outline"></ion-icon></button>
-        <button id="btn_zoom_menos" class="lateral-btn"><ion-icon name="remove-outline"></ion-icon></button><br>
+        <button id="btn_zoom_menos" class="lateral-btn"><ion-icon name="remove-outline"></ion-icon></button>
         <button id="btn_gps" class="lateral-btn"><ion-icon name="locate-outline"></ion-icon></button>
-        <button id="btn_centrar" class="lateral-btn"><ion-icon name="navigate-circle-outline"></ion-icon></button><br>
-        <button id="btn_capas" class="lateral-btn"><ion-icon name="layers-outline"></ion-icon></button>
+        <button id="btn_centrar" class="lateral-btn"><ion-icon name="navigate-circle-outline"></ion-icon></button>
+        -->
+        <button id="btn_capas" class="lateral-btn" title="Cambiar vista del mapa" aria-label="Cambiar vista del mapa">
+            <ion-icon name="layers-outline"></ion-icon>
+        </button>
     </div>
-
 
     <!-- Mapa --> 
     <div id="mapContainer">
@@ -100,16 +130,18 @@
 
     <!-- Panel de información -->
     <div id="panel_informacion" class="panel_informacion">
+        <button type="button" id="cerrar-panel" class="cerrar-panel" aria-label="Cerrar panel">&times;</button>
         <div id="panelSheetHeader" class="panel-sheet-header" aria-label="Encabezado del panel">
             <div id="panelHandle" class="panel-handle" aria-label="Arrastrar panel"></div>
-            <h1 id="cerrar-panel" class="cerrar-panel">x</h1>
         </div>
         <div id="contenedor_panel_info">
 
             <div class="btn_encabezado">
                 <ul>
                     <li id="infoTab" class="tablink active">Información</li>
+                    <!-- Pestaña Plantas deshabilitada temporalmente
                     <li id="interiorTab" class="tablink">Plantas</li>
+                    -->
                     <li id="salonesTab" class="tablink">Listado de Salones</li>
                     <li id="cubiculosTab" class="tablink">Cubículos</li>
                 </ul>
@@ -125,13 +157,14 @@
                 </div>
             </div>
 
-            <!-- INTERIOR -->
+            <!-- INTERIOR (Plantas deshabilitado temporalmente)
             <div id="interiorContent" class="tabcontent" style="display:none;">
                 <img id="interiorImagen" src="" alt="planos" >
                 <div id="floorButtonsContainer" class="floor-buttons"></div>
             </div>
+            -->
 
-            <!-- LISTA DE LOS SAOLONES -->
+            <!-- LISTA DE LOS SALONES -->
             <div id="salonesContent" class="tabcontent" style="display:none;">
                 <ul>
                     <li>sugerencia 1</li>
@@ -146,7 +179,6 @@
                     Cargando cubículos...
                 </div>
                 <ul id="cubiculosList" style="list-style: none; padding: 0;">
-                 
                 </ul>
             </div>
         </div>
@@ -170,7 +202,6 @@
             });
         }
 
-
         (async function() {
             try {
                 await loadScriptWithFallback(
@@ -182,7 +213,6 @@
                     'libs/leaflet-routing-machine/leaflet-routing-machine.js'
                 );
                 
-            
                 loadLocalScripts();
             } catch(error) {
                 console.error('Error cargando librerías:', error);
@@ -200,7 +230,10 @@
                 'scripts/buscador.js' + version,
                 'scripts/script_barra_responsiva.js' + version,
                 'scripts/script_ruta.js' + version,
-                'scripts/script_iconos.js' + version
+                'scripts/script_iconos.js' + version,
+                'scripts/script_location.js' + version,
+                'scripts/script_config.js' + version,
+                'scripts/script_horario.js' + version
             ];
             
             function loadScriptSequentially(index) {
