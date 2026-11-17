@@ -27,10 +27,8 @@ L.Routing.MapboxPHP = L.Class.extend({
                 return `${wp.latLng.lng},${wp.latLng.lat}`;
             }).join(';');
 
-            
-            const profile = this.options.profile || 'mapbox/walking';
+            const initialProfile = this.options.profile || 'mapbox/walking';
             const language = this.options.language || 'es';
-            const url = `${this.backendUrl}?coordinates=${coordinates}&profile=${profile}&language=${language}`;
 
             console.log("Calculando ruta...");
 
@@ -38,16 +36,24 @@ L.Routing.MapboxPHP = L.Class.extend({
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-            fetch(url, { signal: controller.signal })
-                .then(response => {
-                    clearTimeout(timeoutId);
-                    
+            const fetchRoute = (profileToUse) => {
+                const url = `${this.backendUrl}?coordinates=${coordinates}&profile=${profileToUse}&language=${language}`;
+                return fetch(url, { signal: controller.signal }).then(response => {
+                    if (response.status === 422 && profileToUse === 'mapbox/walking') {
+                        console.warn("Ruta peatonal fuera de rango (422), reintentando con perfil driving...");
+                        return fetchRoute('mapbox/driving');
+                    }
                     if (!response.ok) {
                         throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
                     }
                     return response.json();
-                })
+                });
+            };
+
+            fetchRoute(initialProfile)
                 .then(data => {
+                    clearTimeout(timeoutId);
+
                     // Aqui se valida la respuesta de la api
                     if (data.error) {
                         throw new Error(data.error);
@@ -68,10 +74,9 @@ L.Routing.MapboxPHP = L.Class.extend({
                         throw new Error('Respuesta de ruta inválida');
                     }
                     
-                    const coordinates = route.geometry.coordinates;
+                    const routeCoordinates = route.geometry.coordinates;
                     
-            
-                    const latLngs = coordinates.map(coord => {
+                    const latLngs = routeCoordinates.map(coord => {
                         if (!coord || coord.length < 2) {
                             throw new Error('Coordenada inválida en ruta');
                         }
