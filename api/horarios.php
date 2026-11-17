@@ -2,10 +2,12 @@
 header('Content-Type: application/json; charset=utf-8');
 date_default_timezone_set('America/Tijuana');
 
-$idHorario = isset($_GET['id']) ? intval($_GET['id']) : 0;
-if ($idHorario <= 0) {
+$idHorario   = isset($_GET['id']) ? intval($_GET['id']) : 0;
+$numEmpleado = isset($_GET['empleado']) ? trim($_GET['empleado']) : '';
+
+if ($idHorario <= 0 && $numEmpleado === '') {
     http_response_code(400);
-    echo json_encode(['error' => 'id_horario inválido']);
+    echo json_encode(['error' => 'Se requiere id_horario o número de empleado válido']);
     exit;
 }
 
@@ -18,9 +20,6 @@ $cacheFile    = $cacheDir . 'edupage_fiad_16.json';
 $metaFile     = $cacheDir . 'edupage_fiad_16.meta';
 $fallbackFile = __DIR__ . '/../horario_fiad.json';
 
-/**
- * Calcula la clave del corte horario vigente (cada hora al minuto :59).
- */
 function obtenerClaveCorteActual() {
     $minActual = (int) date('i');
     return ($minActual >= 59)
@@ -28,11 +27,6 @@ function obtenerClaveCorteActual() {
         : date('Y-m-d_H', strtotime('-1 hour')) . ':59';
 }
 
-/**
- * Determina si debe refrescarse desde EduPage:
- * - Solo activo entre las 06:00 y 22:00 horas.
- * - Solo una vez por corte horario (:59).
- */
 function debeActualizarCache($cacheFile, $metaFile, $fallbackFile) {
     $existeAlguno = (file_exists($cacheFile) && filesize($cacheFile) > 1000)
                  || (file_exists($fallbackFile) && filesize($fallbackFile) > 1000);
@@ -41,7 +35,7 @@ function debeActualizarCache($cacheFile, $metaFile, $fallbackFile) {
         return true;
     }
 
-    $horaActual = (int) date('G'); // 0 - 23
+    $horaActual = (int) date('G');
     if ($horaActual < 6 || $horaActual >= 22) {
         return false;
     }
@@ -50,9 +44,6 @@ function debeActualizarCache($cacheFile, $metaFile, $fallbackFile) {
     return ($ultimoCorte !== obtenerClaveCorteActual());
 }
 
-/**
- * Descarga multiplataforma (cURL en Docker/Linux + fallback HTTP nativo).
- */
 function descargarDesdeEduPage() {
     $url = 'https://fiad.edupage.org/timetable/server/regulartt.js?__func=regularttGetData';
     $payload = json_encode([
@@ -96,9 +87,6 @@ function descargarDesdeEduPage() {
     return ($res && strpos($res, 'dbiAccessorRes') !== false) ? $res : null;
 }
 
-/**
- * Limpia BOM UTF-8 y repara doble codificación (ej. "Ã“" -> "Ó", "Ã‘" -> "Ñ").
- */
 function normalizarJsonUtf8($texto) {
     $texto = preg_replace('/^\xEF\xBB\xBF/', '', $texto);
     if (preg_match('/Ã[\x80-\xBF]/', $texto)) {
@@ -145,7 +133,7 @@ if (!$data || !isset($data['r']['dbiAccessorRes']['tables'])) {
     exit;
 }
 
-// 3. Reconstruir horario del aula solicitada
+// 3. Indexar tablas de EduPage
 $tables = [];
 foreach ($data['r']['dbiAccessorRes']['tables'] as $t) {
     $tables[$t['id']] = $t['data_rows'];
@@ -167,13 +155,42 @@ $teachers   = $indexById($tables['teachers'] ?? []);
 $lessons    = $indexById($tables['lessons'] ?? []);
 $cards      = $tables['cards'] ?? [];
 
-$targetId = '*' . $idHorario;
-$aulaInfo = $classrooms[$targetId] ?? null;
+$esConsultaProfesor = ($numEmpleado !== '');
+$targetClassroomId  = null;
+$targetTeacherId    = null;
+$tituloEspacio      = '';
+$codigoEspacio      = '';
 
-if (!$aulaInfo) {
-    http_response_code(404);
-    echo json_encode(['error' => 'Aula no encontrada en EduPage']);
-    exit;
+if ($esConsultaProfesor) {
+    $profesorInfo = null;
+    foreach ($teachers as $t) {
+        if (isset($t['short']) && trim((string)$t['short']) === $numEmpleado) {
+            $profesorInfo = $t;
+            break;
+        }
+    }
+
+    if (!$profesorInfo) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Profesor no encontrado en EduPage']);
+        exit;
+    }
+
+    $targetTeacherId = $profesorInfo['id'];
+    $tituloEspacio   = trim(($profesorInfo['firstname'] ?? '') . ' ' . ($profesorInfo['lastname'] ?? ''));
+    $codigoEspacio   = $profesorInfo['short'];
+} else {
+    $targetClassroomId = '*' . $idHorario;
+    $aulaInfo = $classrooms[$targetClassroomId] ?? null;
+
+    if (!$aulaInfo) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Aula no encontrada en EduPage']);
+        exit;
+    }
+
+    $tituloEspacio = $aulaInfo['name'];
+    $codigoEspacio = $aulaInfo['short'];
 }
 
 $diasNombres   = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -184,10 +201,14 @@ $bloques     = [];
 $claseActual = null;
 
 foreach ($cards as $card) {
-    if (!in_array($targetId, $card['classroomids'] ?? [], true)) continue;
-
     $lesson = $lessons[$card['lessonid']] ?? null;
     if (!$lesson) continue;
+
+    if ($esConsultaProfesor) {
+        if (!in_array($targetTeacherId, $lesson['teacherids'] ?? [], true)) continue;
+    } else {
+        if (!in_array($targetClassroomId, $card['classroomids'] ?? [], true)) continue;
+    }
 
     $subject   = $subjects[$lesson['subjectid']] ?? [];
     $periodNum = intval($card['period']);
@@ -207,10 +228,18 @@ foreach ($cards as $card) {
         }
     }
 
-    $profes = [];
-    foreach ($lesson['teacherids'] ?? [] as $tid) {
-        if (isset($teachers[$tid])) {
-            $profes[] = trim(($teachers[$tid]['firstname'] ?? '') . ' ' . ($teachers[$tid]['lastname'] ?? ''));
+    $metaSecundaria = [];
+    if ($esConsultaProfesor) {
+        foreach ($card['classroomids'] ?? [] as $crid) {
+            if (isset($classrooms[$crid])) {
+                $metaSecundaria[] = 'Aula: ' . ($classrooms[$crid]['short'] ?? $classrooms[$crid]['name']);
+            }
+        }
+    } else {
+        foreach ($lesson['teacherids'] ?? [] as $tid) {
+            if (isset($teachers[$tid])) {
+                $metaSecundaria[] = trim(($teachers[$tid]['firstname'] ?? '') . ' ' . ($teachers[$tid]['lastname'] ?? ''));
+            }
         }
     }
 
@@ -227,7 +256,7 @@ foreach ($cards as $card) {
                 'materia'     => $subject['name'] ?? 'Materia sin nombre',
                 'materia_cor' => $subject['short'] ?? '',
                 'grupos'      => implode(', ', $grupos),
-                'profesores'  => implode(', ', $profes),
+                'profesores'  => implode(', ', $metaSecundaria),
                 'color'       => $colorGrupo
             ];
             $bloques[] = $item;
@@ -246,9 +275,9 @@ usort($bloques, function ($a, $b) {
 });
 
 echo json_encode([
-    'id_horario'    => $idHorario,
-    'aula'          => $aulaInfo['name'],
-    'codigo'        => $aulaInfo['short'],
+    'id_horario'    => $esConsultaProfesor ? $numEmpleado : $idHorario,
+    'aula'          => $tituloEspacio,
+    'codigo'        => $codigoEspacio,
     'ocupado_ahora' => ($claseActual !== null),
     'clase_actual'  => $claseActual,
     'actualizado'   => file_exists($metaFile) ? file_get_contents($metaFile) : date('Y-m-d H:i'),

@@ -15,7 +15,6 @@
     box-sizing: border-box;
 }
 
-
 .panel_informacion {
     position: fixed;
     top: 84px;
@@ -35,11 +34,26 @@
     transform: none;
 }
 
-.panel-handle {
-    display: none;
+.panel-layout-inner {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
 }
 
+/* Cabecera superior fija (compacta en escritorio, deslizable en móvil) */
 .panel-sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    position: relative;
+    height: 44px;
+    padding: 10px 16px 0;
+    flex-shrink: 0;
+}
+
+.panel-handle {
     display: none;
 }
 
@@ -54,22 +68,107 @@
     }
 }
 
+/* Botón de cerrar (X) */
+.cerrar-panel {
+    position: relative;
+    background: var(--bg-light-gray);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    color: var(--text-dark);
+    font-size: 20px;
+    line-height: 1;
+    font-weight: 700;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s, color 0.2s, transform 0.1s;
+    z-index: 30;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.cerrar-panel:hover {
+    background: #e2e5e9;
+    color: var(--text-dark);
+}
+
+.cerrar-panel:active {
+    transform: scale(0.92);
+}
+
+/* Navegación de pestañas fija en 1 sola fila */
+.btn_encabezado {
+    background: transparent;
+    padding: 8px 20px 12px;
+    flex-shrink: 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.btn_encabezado ul {
+    background-color: transparent;
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    width: 100%;
+    gap: 8px;
+}
+
+.btn_encabezado li {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-light-gray);
+    border: none;
+    border-radius: 10px;
+    padding: 9px 6px;
+    min-height: 38px;
+    cursor: pointer;
+    color: var(--text-gray);
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: all 0.2s;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.btn_encabezado li:hover {
+    background-color: #e4e6e9;
+    color: var(--text-dark);
+}
+
+.btn_encabezado li.active {
+    background-color: #e8f5e9;
+    color: var(--accent-green);
+    font-weight: 700;
+}
+
+/* Único contenedor desplazable del panel */
 #contenedor_panel_info {
     background-color: transparent;
-    padding: 24px;
-    height: 100%;
+    padding: 16px 20px 24px;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
     box-sizing: border-box;
     scrollbar-width: thin;
     scrollbar-color: var(--accent-green) var(--bg-light-gray);
 }
 
 #contenedor_panel_info::-webkit-scrollbar {
-    width: 8px;
+    width: 7px;
 }
 
 #contenedor_panel_info::-webkit-scrollbar-track {
     background: var(--bg-light-gray);
+    border-radius: 4px;
 }
 
 #contenedor_panel_info::-webkit-scrollbar-thumb {
@@ -81,143 +180,77 @@
     background: #248f28;
 }
 
-/* Botón de cerrar (X) */
-.cerrar-panel {
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    color: var(--text-dark);
-    font-size: 24px;
-    line-height: 1;
-    font-weight: 700;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color 0.2s, transform 0.1s;
-    z-index: 30;
-    width: 36px;
-    height: 36px;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.cerrar-panel:hover {
-    background: transparent;
-    color: var(--text-gray);
-}
-
-.cerrar-panel:active {
-    transform: scale(0.92);
-}
-
-/* Navegación de pestañas */
-.btn_encabezado {
-    background: transparent;
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    margin-top: 44px;
-    margin-bottom: 24px;
-}
-
-.btn_encabezado ul {
-    background-color: transparent;
-    list-style-type: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    width: 100%;
-    justify-content: space-around;
-    gap: 5px;
-}
-
-.btn_encabezado li {
-    flex: 1;
+/* Contenido del edificio: Título -> Cómo llegar -> Imagen -> Descripción */
+.contenedor_edificio_info {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--bg-light-gray);
-    border: none;
-    border-radius: 12px;
-    padding: 10px 5px;
-    cursor: pointer;
-    color: var(--text-gray);
-    font-size: 0.8rem;
-    font-weight: 600;
-    transition: all 0.2s;
-    text-align: center;
+    gap: 14px;
 }
 
-.btn_encabezado li:hover {
-    background-color: #e4e6e9;
-    color: var(--text-dark);
-}
-
-.btn_encabezado li.active {
-    background-color: #e8f5e9;
-    color: var(--accent-green);
-    font-weight: 600;
-}
-
-/* Contenido del edificio */
-.contenedor_edificio_info {
-    padding: 10px 0;
-}
-
-.contenedor_edificio_info img {
-    width: 100%;
-    height: 180px;
-    border-radius: 12px;
-    object-fit: cover;
-    margin-bottom: 20px;
+.edificio-header-accion {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
 .contenedor_edificio_info h2 {
-    margin-top: 15px;
-    margin-bottom: 12px;
-    font-size: 1.5rem;
+    margin: 0;
+    font-size: 1.42rem;
     font-weight: 700;
+    line-height: 1.25;
     color: var(--text-dark);
 }
 
-#edificioInfo {
-    text-align: justify;
-    margin-bottom: 24px;
-    line-height: 1.5;
-    color: var(--text-gray);
-    font-size: 0.95rem;
-}
-
-/* Botón Verde "Como Llegar" */
+/* Botón Verde "Cómo llegar" */
 #btn_direcciones {
     width: 100%;
-    padding: 14px;
+    padding: 12px 18px;
     background-color: var(--accent-green);
-    color: white;
+    color: #ffffff;
     border: none;
-    border-radius: 30px;
-    font-size: 1rem;
+    border-radius: 12px;
+    font-size: 0.96rem;
     font-weight: 700;
     cursor: pointer;
-    transition: background-color 0.2s, transform 0.1s;
+    transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    margin: 20px 0;
+    margin: 0;
+    box-shadow: 0 3px 10px rgba(45, 168, 50, 0.25);
 }
 
 #btn_direcciones:hover {
     background-color: #248f28;
+    box-shadow: 0 4px 14px rgba(45, 168, 50, 0.35);
 }
 
 #btn_direcciones:active {
     transform: scale(0.98);
+}
+
+.btn-direcciones-icono {
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+}
+
+.contenedor_edificio_info img {
+    width: 100%;
+    height: 175px;
+    border-radius: 12px;
+    object-fit: cover;
+    margin: 0;
+    display: block;
+}
+
+#edificioInfo {
+    text-align: justify;
+    margin: 0;
+    line-height: 1.55;
+    color: var(--text-gray);
+    font-size: 0.93rem;
 }
 
 #interiorImagen {
@@ -228,7 +261,7 @@
 }
 
 #salonesContent {
-    padding: 10px 0;
+    padding: 0;
 }
 
 /* UL dentro de salonesContent */
@@ -239,15 +272,15 @@
 }
 
 .salon-piso {
-    margin-bottom: 25px;
+    margin-bottom: 22px;
 }
 
 .salon-piso-titulo {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
     color: var(--accent-green);
-    margin-bottom: 12px;
-    padding: 10px 15px;
+    margin-bottom: 10px;
+    padding: 9px 14px;
     background: #e8f5e9;
     border-left: 4px solid var(--accent-green);
     border-radius: 8px;
@@ -256,12 +289,12 @@
 .salon-item {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 12px;
-    padding: 18px;
+    gap: 6px;
+    margin-bottom: 10px;
+    padding: 15px 16px;
     cursor: pointer;
     border-radius: 12px;
-    transition: all 0.3s ease;
+    transition: all 0.25s ease;
     background: var(--bg-light-gray);
     border: 1px solid #e0e0e0;
     color: var(--text-dark);
@@ -269,14 +302,14 @@
 
 .salon-item:hover {
     background: #e4e6e9;
-    transform: translateX(8px);
+    transform: translateX(6px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     border-color: var(--accent-green);
 }
 
 .salon-codigo {
     font-weight: 700;
-    font-size: 16px;
+    font-size: 15px;
     color: var(--text-dark);
 }
 
@@ -324,35 +357,13 @@
 .tabcontent {
     display: none;
     background-color: transparent;
-    animation: fadeIn 0.3s ease-in;
-    max-height: calc(100vh - 320px);
-    overflow-y: auto;
-    overflow-x: hidden;
-}
-
-/* Scrollbar para tabcontent */
-.tabcontent::-webkit-scrollbar {
-    width: 8px;
-}
-
-.tabcontent::-webkit-scrollbar-track {
-    background: var(--bg-light-gray);
-    border-radius: 4px;
-}
-
-.tabcontent::-webkit-scrollbar-thumb {
-    background: var(--accent-green);
-    border-radius: 4px;
-}
-
-.tabcontent::-webkit-scrollbar-thumb:hover {
-    background: #248f28;
+    animation: fadeIn 0.25s ease-in;
 }
 
 @keyframes fadeIn {
     from {
         opacity: 0;
-        transform: translateY(10px);
+        transform: translateY(8px);
     }
     to {
         opacity: 1;
@@ -368,7 +379,7 @@
     padding: 15px;
     cursor: pointer;
     border-radius: 10px;
-    transition: all 0.3s ease;
+    transition: all 0.25s ease;
     background: var(--bg-light-gray);
     border: 1px solid #e0e0e0;
     color: var(--text-dark);
@@ -439,7 +450,7 @@
 }
 
 #cubiculosContent {
-    padding: 10px 0;
+    padding: 0;
 }
 
 @media screen and (max-width: 768px) {
@@ -451,10 +462,10 @@
         width: min(100vw - 12px, 560px);
         height: var(--panel-height, 45vh);
         height: var(--panel-height, 45dvh);
-        border-radius: 22px 22px 18px 18px;
+        border-radius: 22px 22px 16px 16px;
         transform: translateX(-50%);
         transition: height 280ms ease-out, opacity 280ms ease-out, transform 280ms ease-out;
-        opacity: 0.98;
+        opacity: 0.99;
         overscroll-behavior: contain;
         padding-bottom: env(safe-area-inset-bottom, 0px);
     }
@@ -474,8 +485,8 @@
         align-items: center;
         justify-content: center;
         position: relative;
-        height: 56px;
-        padding: 10px 16px 0;
+        height: 42px;
+        padding: 6px 14px 0;
         touch-action: none;
         user-select: none;
         -webkit-user-select: none;
@@ -483,11 +494,15 @@
         z-index: 20;
     }
 
+    /* Indicador de arrastre claro: flecha + píldora contrastada */
     .panel-handle {
-        position: relative;
-        display: block;
-        width: 32px;
-        height: 16px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        width: 64px;
+        height: 30px;
         margin: 0 auto;
         touch-action: none;
         cursor: grab;
@@ -495,127 +510,112 @@
         -webkit-tap-highlight-color: transparent;
     }
 
-    .panel-handle::before,
-    .panel-handle::after {
-        content: '';
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        transition: opacity 220ms ease, transform 220ms ease;
+    .panel-handle-chevron {
+        width: 9px;
+        height: 9px;
+        border-left: 2.5px solid #64748b;
+        border-top: 2.5px solid #64748b;
+        border-radius: 1.5px;
+        transform: translateY(2px) rotate(45deg);
+        transition: transform 240ms ease, border-color 200ms ease;
     }
 
-    .panel-handle::before {
-        width: 10px;
-        height: 10px;
-        border-left: 2.5px solid rgba(26, 26, 26, 0.38);
-        border-top: 2.5px solid rgba(26, 26, 26, 0.38);
-        border-radius: 2px;
-        transform: translate(-50%, -35%) rotate(45deg) scale(1);
-        opacity: 1;
-    }
-
-    .panel-handle::after {
-        width: 30px;
-        height: 4px;
-        background: rgba(26, 26, 26, 0.18);
+    .panel-handle-pill {
+        width: 40px;
+        height: 5px;
         border-radius: 999px;
-        transform: translate(-50%, -50%) scale(1);
-        opacity: 0;
+        background: #94a3b8;
+        transition: background-color 200ms ease, width 200ms ease;
     }
 
-    .panel_informacion.panel-expanded .panel-handle::before {
-        opacity: 0;
-        transform: translate(-50%, -35%) rotate(45deg) scale(0.5);
+    .panel-handle:active .panel-handle-pill {
+        background: var(--accent-green);
+        width: 46px;
     }
 
-    .panel_informacion.panel-expanded .panel-handle::after {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
+    .panel-handle:active .panel-handle-chevron {
+        border-color: var(--accent-green);
+    }
+
+    /* Al expandir el panel, la flecha apunta hacia abajo para indicar que puede minimizarse */
+    .panel_informacion.panel-expanded .panel-handle-chevron {
+        transform: translateY(-2px) rotate(225deg);
     }
 
     .cerrar-panel {
         position: absolute;
-        top: 10px;
+        top: 50%;
         right: 12px;
-        width: 38px;
-        height: 38px;
+        transform: translateY(-50%);
+        width: 34px;
+        height: 34px;
+        font-size: 20px;
         z-index: 30;
     }
 
+    .cerrar-panel:active {
+        transform: translateY(-50%) scale(0.92);
+    }
+
+    /* Pestañas fijas en 1 sola fila tanto en vista parcial como expandida */
+    .btn_encabezado {
+        display: block;
+        padding: 4px 14px 10px;
+    }
+
+    .btn_encabezado ul {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+    }
+
+    .btn_encabezado li {
+        font-size: 0.78rem;
+        padding: 8px 4px;
+        min-height: 36px;
+        border-radius: 10px;
+    }
+
     #contenedor_panel_info {
-        padding: 6px 16px 18px;
-        height: calc(100% - 56px);
+        padding: 12px 16px 20px;
+        flex: 1;
+        min-height: 0;
         overflow-y: auto;
         overscroll-behavior: contain;
         -webkit-overflow-scrolling: touch;
         touch-action: pan-y;
     }
 
-    .btn_encabezado {
-        margin-top: 14px;
-        margin-bottom: 18px;
-        gap: 5px;
+    .contenedor_edificio_info {
+        gap: 12px;
     }
 
-    .btn_encabezado ul {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
+    .edificio-header-accion {
         gap: 8px;
     }
 
-    .btn_encabezado li {
-        flex: none;
-        min-width: 0;
-        box-sizing: border-box;
-        white-space: normal;
-        overflow-wrap: break-word;
-        font-size: 11px;
-        padding: 10px 8px;
-        min-height: 44px;
+    .contenedor_edificio_info h2 {
+        font-size: 1.25rem;
     }
 
-    .tabcontent {
-        max-height: calc(100dvh - 240px);
-    }
-
-    .panel_informacion.panel-partial .btn_encabezado {
-        display: none;
-    }
-
-    .panel_informacion.panel-partial .contenedor_edificio_info img {
-        height: 70px;
-        margin-bottom: 10px;
-    }
-
-    .panel_informacion.panel-partial .contenedor_edificio_info h2 {
-        margin-top: 4px;
-        margin-bottom: 6px;
-    }
-
-    .panel_informacion.panel-partial #edificioInfo {
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        margin-bottom: 10px;
-    }
-
-    .panel_informacion.panel-partial #btn_direcciones {
-        margin: 6px 0;
+    #btn_direcciones {
+        padding: 11px 16px;
+        font-size: 0.92rem;
+        border-radius: 12px;
     }
 
     .contenedor_edificio_info img {
         height: 150px;
     }
 
-    .contenedor_edificio_info h2 {
-        font-size: 24px;
+    /* En vista parcial (45%), la foto es ligeramente más compacta para dejar ver el inicio de la descripción */
+    .panel_informacion.panel-partial .contenedor_edificio_info img {
+        height: 115px;
     }
 
-    #btn_direcciones {
-        margin: 16px 0 6px;
-        font-size: 16px;
-        padding: 12px 20px;
+    #edificioInfo {
+        font-size: 0.9rem;
+        line-height: 1.5;
     }
 }
 
@@ -639,40 +639,34 @@
     }
 
     .panel-sheet-header {
-        height: 52px;
-        padding: 8px 12px 0;
+        height: 40px;
+        padding: 6px 12px 0;
     }
 
-    .panel-handle {
-        margin-top: 0;
+    .btn_encabezado {
+        padding: 4px 12px 8px;
     }
 
     .btn_encabezado li {
-        font-size: 10px;
-        padding: 8px 4px;
-    }
-
-    .tabcontent {
-        max-height: calc(100dvh - 220px);
+        font-size: 0.74rem;
+        padding: 7px 4px;
+        min-height: 34px;
     }
 
     .cerrar-panel {
-        font-size: 22px;
-        width: 40px;
-        height: 40px;
-        top: 8px;
+        font-size: 19px;
+        width: 32px;
+        height: 32px;
         right: 10px;
-        z-index: 30;
     }
 
     #btn_direcciones {
-        font-size: 14px;
-        margin: 8px 0;
-        padding: 10px 15px;
+        font-size: 0.88rem;
+        padding: 10px 14px;
     }
 
     .contenedor_edificio_info h2 {
-        font-size: 20px;
+        font-size: 1.15rem;
     }
 
     .floor-button {
@@ -698,15 +692,15 @@
 }
 
 .cubiculo-piso {
-    margin-bottom: 25px;
+    margin-bottom: 22px;
 }
 
 .cubiculo-piso-titulo {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
     color: var(--accent-green);
-    margin-bottom: 12px;
-    padding: 10px 15px;
+    margin-bottom: 10px;
+    padding: 9px 14px;
     background: #e8f5e9;
     border-left: 4px solid var(--accent-green);
     border-radius: 8px;
@@ -716,11 +710,11 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    margin-bottom: 12px;
-    padding: 18px;
+    margin-bottom: 10px;
+    padding: 15px 16px;
     cursor: pointer;
     border-radius: 12px;
-    transition: all 0.3s ease;
+    transition: all 0.25s ease;
     background: var(--bg-light-gray);
     border: 1px solid #e0e0e0;
     color: var(--text-dark);
@@ -728,7 +722,7 @@
 
 .cubiculo-item:hover {
     background: #e4e6e9;
-    transform: translateX(8px);
+    transform: translateX(6px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     border-color: var(--accent-green);
 }
@@ -741,12 +735,13 @@
 
 .cubiculo-codigo {
     font-weight: 700;
-    font-size: 16px;
+    font-size: 15px;
     color: var(--text-dark);
 }
 
 .cubiculo-profesor {
     font-size: 14px;
+    font-weight: 600;
     color: var(--text-gray);
     display: flex;
     align-items: center;
@@ -756,11 +751,61 @@
 .cubiculo-profesor::before {
     content: '👤';
     font-size: 16px;
+    flex-shrink: 0;
 }
 
 .cubiculo-sin-profesor {
     color: #9e9e9e;
+    font-weight: 400;
     font-style: italic;
+}
+
+.cubiculo-contacto {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 2px;
+    padding-left: 24px;
+}
+
+.cubiculo-contacto-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--text-gray);
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.cubiculo-contacto-item a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+.cubiculo-contacto-item a:hover {
+    color: var(--accent-green);
+    text-decoration: underline;
+}
+
+.cubiculo-contacto-icono {
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+    background-color: currentColor;
+    opacity: 0.8;
+}
+
+.cubiculo-contacto-icono.icono-email {
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='4' width='20' height='16' rx='2'/%3E%3Cpath d='m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7'/%3E%3C/svg%3E") no-repeat center / contain;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='4' width='20' height='16' rx='2'/%3E%3Cpath d='m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7'/%3E%3C/svg%3E") no-repeat center / contain;
+}
+
+.cubiculo-contacto-icono.icono-telefono {
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z'/%3E%3C/svg%3E") no-repeat center / contain;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z'/%3E%3C/svg%3E") no-repeat center / contain;
 }
 
 .cubiculo-mensaje-vacio {
@@ -779,16 +824,12 @@
     }
     
     .btn_encabezado li {
-        font-size: 12px;
-        padding: 10px 6px;
-    }
-    
-    .tabcontent {
-        max-height: calc(100vh - 290px);
+        font-size: 0.8rem;
+        padding: 9px 6px;
     }
 }
 
-/* Spinner circular limpio centrado en todo el panel */
+/* Spinner circular limpio centrado en el área de contenido */
 @keyframes fiadSpin {
     0%   { transform: translate(-50%, -50%) rotate(0deg); }
     100% { transform: translate(-50%, -50%) rotate(360deg); }
@@ -805,7 +846,7 @@
 .panel_informacion:has(.contenedor_edificio_info.is-loading)::after {
     content: "";
     position: absolute;
-    top: 50%;
+    top: 56%;
     left: 50%;
     width: 36px;
     height: 36px;
@@ -818,7 +859,6 @@
 }
 
 /* Evita que aparezca cualquier scrollbar en el panel mientras carga */
-#infoContent:has(.contenedor_edificio_info.is-loading),
 #contenedor_panel_info:has(.contenedor_edificio_info.is-loading) {
     overflow-y: hidden !important;
 }

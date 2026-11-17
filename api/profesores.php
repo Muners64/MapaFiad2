@@ -23,8 +23,11 @@ try {
         SELECT DISTINCT
             prof.id_profesor,
             prof.nombre_completo,
+            prof.numero_empleado,
+            prof.titulo,
             prof.email,
             prof.telefono,
+            prof.extension,
             prof.estatus,
             esp.codigo_completo as codigo_oficina,
             esp.numero_espacio as numero_oficina,

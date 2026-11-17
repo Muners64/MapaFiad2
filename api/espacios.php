@@ -37,8 +37,12 @@ try {
             edif.nombre_comun as nombre_edificio,
             edif.latitud as lat_edificio,
             edif.longitud as lng_edificio,
+            prof.numero_empleado,
+            prof.titulo,
             prof.nombre_completo as profesor_asignado,
-            prof.email as email_profesor
+            prof.email as email_profesor,
+            prof.telefono,
+            prof.extension
         FROM espacios esp
         INNER JOIN cat_tipos_espacio tipo ON esp.id_tipo = tipo.id_tipo
         INNER JOIN edificios edif ON esp.id_edificio = edif.id_edificio

@@ -2,6 +2,78 @@
     const cacheMemoria = new Map();
     let overlayEl = null;
 
+    function formatearNombreProfesor(titulo, nombre) {
+        const t = String(titulo || '').trim();
+        const n = String(nombre || '').trim();
+        if (!n) return '';
+        if (!t) return n;
+        if (n.toLowerCase().startsWith(t.toLowerCase() + ' ')) {
+            return n;
+        }
+        return `${t} ${n}`;
+    }
+
+    function formatearTelefonoExtension(telefono, extension) {
+        const tel = String(telefono || '').trim();
+        const ext = String(extension || '').trim();
+        if (tel && ext) return `${tel} · Ext. ${ext}`;
+        if (tel) return tel;
+        if (ext) return `Ext. ${ext}`;
+        return '';
+    }
+
+    function escaparHtml(str) {
+        return String(str || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function renderizarContactoProfesor(contacto) {
+        if (!contacto) return '';
+        const email = String(contacto.email || '').trim();
+        const telefono = String(contacto.telefono || '').trim();
+        const extension = String(contacto.extension || '').trim();
+        const telFormateado = formatearTelefonoExtension(telefono, extension);
+
+        if (!email && !telFormateado) return '';
+
+        const items = [];
+        if (email) {
+            const safeEmail = escaparHtml(email);
+            items.push(`
+                <a class="horario-contacto-item" href="mailto:${safeEmail}" title="Enviar correo">
+                    <span class="horario-contacto-icono icono-email" aria-hidden="true"></span>
+                    <span>${safeEmail}</span>
+                </a>
+            `);
+        }
+
+        if (telFormateado) {
+            const safeTelText = escaparHtml(telFormateado);
+            if (telefono) {
+                const telHref = escaparHtml(telefono.replace(/\s+/g, ''));
+                items.push(`
+                    <a class="horario-contacto-item" href="tel:${telHref}" title="Llamar">
+                        <span class="horario-contacto-icono icono-telefono" aria-hidden="true"></span>
+                        <span>${safeTelText}</span>
+                    </a>
+                `);
+            } else {
+                items.push(`
+                    <span class="horario-contacto-item">
+                        <span class="horario-contacto-icono icono-telefono" aria-hidden="true"></span>
+                        <span>${safeTelText}</span>
+                    </span>
+                `);
+            }
+        }
+
+        return items.join('');
+    }
+
     function crearComponenteDOM() {
         if (document.getElementById('horarioModalOverlay')) {
             overlayEl = document.getElementById('horarioModalOverlay');
@@ -15,6 +87,7 @@
                         <div class="horario-modal-titulo-wrap">
                             <h3 id="horarioModalTitulo">Horario del Espacio</h3>
                             <div class="horario-modal-subtitulo" id="horarioModalSubtitulo"></div>
+                            <div class="horario-modal-contacto" id="horarioModalContacto"></div>
                         </div>
                         <button type="button" id="horarioModalCerrar" class="horario-modal-cerrar" aria-label="Cerrar horario">&times;</button>
                     </div>
@@ -25,15 +98,12 @@
         document.body.insertAdjacentHTML('beforeend', html);
         overlayEl = document.getElementById('horarioModalOverlay');
 
-        // Cerrar con botón X
         document.getElementById('horarioModalCerrar').addEventListener('click', cerrarHorarioSalon);
 
-        // Cerrar al hacer clic fuera de la tarjeta
         overlayEl.addEventListener('click', function (e) {
             if (e.target === overlayEl) cerrarHorarioSalon();
         });
 
-        // Cerrar con tecla Escape
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape' && overlayEl.classList.contains('abierto')) {
                 cerrarHorarioSalon();
@@ -46,18 +116,15 @@
         const r = parseInt(hex.slice(1, 3), 16);
         const g = parseInt(hex.slice(3, 5), 16);
         const b = parseInt(hex.slice(5, 7), 16);
-        // Mezcla al 28% sobre blanco para garantizar legibilidad con texto oscuro
         const mix = (c) => Math.round(255 - (255 - c) * 0.28);
         return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
     }
 
     function renderizarCuadricula(data) {
         const dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-        // Periodos 1 (7:00) al 15 (22:00)
         const minPeriodo = 1;
         const maxPeriodo = 15;
 
-        // Matriz [periodo][dia_index]
         const matriz = {};
         const ocupadasPorSpan = {};
 
@@ -121,7 +188,6 @@
         const diasCortos = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
         const diasLargos = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-        // Día actual: getDay() devuelve 0=Dom, 1=Lun ... 6=Sáb. Si es Dom (0), muestra Lun (0).
         const hoyJs = new Date().getDay();
         const diaInicial = (hoyJs >= 1 && hoyJs <= 6) ? hoyJs - 1 : 0;
 
@@ -180,44 +246,104 @@
         `;
     }
 
-    async function abrirHorarioSalon(idHorario, nombreFallback = '') {
+    async function abrirHorarioSalon(identificador, nombreFallback = '', tipoEspacio = 1, datosExtra = null) {
         crearComponenteDOM();
+
+        const esCubiculo = Number(tipoEspacio) === 4;
+        const cacheKey = `${esCubiculo ? 'emp' : 'aula'}_${identificador}`;
 
         const tituloEl = document.getElementById('horarioModalTitulo');
         const subtituloEl = document.getElementById('horarioModalSubtitulo');
+        const contactoEl = document.getElementById('horarioModalContacto');
         const bodyEl = document.getElementById('horarioModalBody');
 
-        tituloEl.textContent = nombreFallback || `Cargando espacio #${idHorario}...`;
+        const infoCacheGlobal = (esCubiculo && window.datosProfesoresHorario)
+            ? (window.datosProfesoresHorario[String(identificador)] || {})
+            : {};
+        const infoInicial = Object.assign({}, infoCacheGlobal, datosExtra || {});
+
+        const tituloInicial = nombreFallback
+            ? nombreFallback
+            : (esCubiculo && infoInicial.nombre_completo
+                ? infoInicial.nombre_completo
+                : `Cargando ${esCubiculo ? 'docente' : 'espacio'} #${identificador}...`);
+
+        tituloEl.textContent = tituloInicial;
         subtituloEl.innerHTML = '';
+        contactoEl.innerHTML = esCubiculo ? renderizarContactoProfesor(infoInicial) : '';
         bodyEl.innerHTML = '<div class="horario-loading">Consultando horario actualizado...</div>';
         overlayEl.classList.add('abierto');
 
         try {
             let data;
-            if (cacheMemoria.has(idHorario)) {
-                data = cacheMemoria.get(idHorario);
+            if (cacheMemoria.has(cacheKey)) {
+                data = cacheMemoria.get(cacheKey);
             } else {
-                const res = await fetch(`api/horarios.php?id=${encodeURIComponent(idHorario)}`);
+                const queryParam = esCubiculo
+                    ? `empleado=${encodeURIComponent(identificador)}`
+                    : `id=${encodeURIComponent(identificador)}`;
+
+                const res = await fetch(`api/horarios.php?${queryParam}`);
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 data = await res.json();
                 if (data.error) throw new Error(data.error);
-                cacheMemoria.set(idHorario, data);
+                cacheMemoria.set(cacheKey, data);
             }
 
-            tituloEl.textContent = data.aula || nombreFallback;
-            const badgeClase = data.ocupado_ahora ? 'ocupado' : 'libre';
-            const badgeTexto = data.ocupado_ahora
-                ? `Ocupado ahora (${data.clase_actual.materia})`
-                : 'Disponible ahora';
+            if (esCubiculo) {
+                const tituloProf = String(
+                    data.titulo ||
+                    data.profesor_titulo ||
+                    infoInicial.titulo ||
+                    ''
+                ).trim();
+                const nombreProf = String(
+                    data.profesor ||
+                    data.aula ||
+                    infoInicial.nombre ||
+                    ''
+                ).trim();
+                const nombreConTitulo = formatearNombreProfesor(tituloProf, nombreProf);
 
-            subtituloEl.innerHTML = `
-                <span class="horario-badge-estado ${badgeClase}">${badgeTexto}</span>
-                <span>Código: ${data.codigo || '-'}</span>
-            `;
+                let tituloFinal = nombreFallback;
+                if (!tituloFinal) {
+                    const partesCubiculo = [
+                        String(data.codigo_edificio || '').trim(),
+                        String(data.numero_espacio || '').trim(),
+                        nombreConTitulo
+                    ].filter(Boolean);
+                    tituloFinal = partesCubiculo.length > 0 ? partesCubiculo.join(' - ') : nombreConTitulo;
+                }
+                tituloEl.textContent = tituloFinal;
+
+                const contactoFinal = {
+                    email: data.email || data.profesor_email || infoInicial.email || '',
+                    telefono: data.telefono || data.profesor_telefono || infoInicial.telefono || '',
+                    extension: data.extension || data.profesor_extension || infoInicial.extension || ''
+                };
+                contactoEl.innerHTML = renderizarContactoProfesor(contactoFinal);
+            } else {
+                tituloEl.textContent = nombreFallback || data.aula;
+                contactoEl.innerHTML = '';
+            }
+
+            let badgeHtml = '';
+            if (esCubiculo) {
+                if (data.ocupado_ahora) {
+                    badgeHtml = `<span class="horario-badge-estado ocupado">En clase ahora (${data.clase_actual.materia})</span>`;
+                }
+            } else {
+                const badgeClase = data.ocupado_ahora ? 'ocupado' : 'libre';
+                const badgeTexto = data.ocupado_ahora
+                    ? `Ocupado ahora (${data.clase_actual.materia})`
+                    : 'Disponible ahora';
+                badgeHtml = `<span class="horario-badge-estado ${badgeClase}">${badgeTexto}</span>`;
+            }
+
+            subtituloEl.innerHTML = badgeHtml;
 
             bodyEl.innerHTML = renderizarCuadricula(data) + renderizarVistaMovil(data);
 
-            // Eventos para cambiar de día en vista móvil
             bodyEl.querySelectorAll('.horario-dia-tab').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const idx = btn.getAttribute('data-dia-idx');
@@ -238,20 +364,44 @@
         }
     }
 
-    // Exponer API pública global
     window.abrirHorarioSalon = abrirHorarioSalon;
     window.cerrarHorarioSalon = cerrarHorarioSalon;
 
-    // Delegación de eventos: cualquier elemento con data-id-horario abre el modal al hacer clic
+    // Delegación de eventos: soporta tanto data-id-horario como data-num-empleado / data-tipo-espacio="4"
     document.addEventListener('click', function (e) {
-        const trigger = e.target.closest('[data-id-horario]');
+        // Si hace clic directamente en el enlace de correo o teléfono de la tarjeta, no abrir el modal
+        if (e.target.closest('a')) return;
+
+        const trigger = e.target.closest('[data-id-horario], [data-num-empleado]');
         if (!trigger) return;
+
+        const tipoEspacio = parseInt(trigger.getAttribute('data-tipo-espacio') || '1', 10);
+        const nombre = trigger.getAttribute('data-nombre-salon') || trigger.textContent.trim();
+
+        if (tipoEspacio === 4 || trigger.hasAttribute('data-num-empleado')) {
+            const numEmpleado = (
+                trigger.getAttribute('data-num-empleado') ||
+                trigger.getAttribute('data-id-horario') ||
+                ''
+            ).trim();
+
+            if (numEmpleado) {
+                e.preventDefault();
+                const datosExtra = {
+                    titulo: trigger.getAttribute('data-profesor-titulo') || '',
+                    email: trigger.getAttribute('data-profesor-email') || '',
+                    telefono: trigger.getAttribute('data-profesor-telefono') || '',
+                    extension: trigger.getAttribute('data-profesor-extension') || ''
+                };
+                abrirHorarioSalon(numEmpleado, nombre, 4, datosExtra);
+            }
+            return;
+        }
 
         const idHorario = parseInt(trigger.getAttribute('data-id-horario'), 10);
         if (idHorario > 0) {
             e.preventDefault();
-            const nombre = trigger.getAttribute('data-nombre-salon') || trigger.textContent.trim();
-            abrirHorarioSalon(idHorario, nombre);
+            abrirHorarioSalon(idHorario, nombre, tipoEspacio);
         }
     });
 })();

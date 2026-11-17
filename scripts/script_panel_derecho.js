@@ -8,6 +8,9 @@ var cacheCubiculosEdificios = new Map();
 var tokenSeleccionActual = 0;
 var controladorFetchActual = null;
 
+// Registro global para compartir datos de contacto y título con el modal de horarios
+window.datosProfesoresHorario = window.datosProfesoresHorario || {};
+
 cerrarpanel.addEventListener('click', function () {
     tokenSeleccionActual++;
     if (controladorFetchActual) {
@@ -15,7 +18,7 @@ cerrarpanel.addEventListener('click', function () {
         controladorFetchActual = null;
     }
     panel_informacion.style.display = 'none';
-    panel_informacion.classList.remove('panel-expanded');
+    panel_informacion.classList.remove('panel-partial', 'panel-expanded');
     panel_informacion.dataset.panelState = 'collapsed';
     if (typeof window.limpiarMarcadoresEspacios === 'function') {
         window.limpiarMarcadoresEspacios();
@@ -45,6 +48,26 @@ var panelMovilArrastre = {
     lastTime: 0,
     armed: false
 };
+
+function formatearNombreProfesor(titulo, nombre) {
+    var t = String(titulo || '').trim();
+    var n = String(nombre || '').trim();
+    if (!n) return '';
+    if (!t) return n;
+    if (n.toLowerCase().indexOf(t.toLowerCase() + ' ') === 0) {
+        return n;
+    }
+    return t + ' ' + n;
+}
+
+function formatearTelefonoExtension(telefono, extension) {
+    var tel = String(telefono || '').trim();
+    var ext = String(extension || '').trim();
+    if (tel && ext) return tel + ' · Ext. ' + ext;
+    if (tel) return tel;
+    if (ext) return 'Ext. ' + ext;
+    return '';
+}
 
 function obtenerAlturaViewport() {
     if (window.visualViewport && typeof window.visualViewport.height === 'number') {
@@ -94,6 +117,12 @@ function esVistaMovilPanel() {
     return panelMovilActivo && panelMovilActivo.matches;
 }
 
+function panelEstaVisible() {
+    if (!panel_informacion) return false;
+    var disp = panel_informacion.style.display;
+    return disp !== '' && disp !== 'none';
+}
+
 function abrirPanelMovil() {
     if (!panel_informacion) return;
     aplicarEstadoPanelMovil('partial');
@@ -115,7 +144,7 @@ function cerrarPanelMovil() {
 function actualizarPanelMovilSegunVista() {
     if (!panel_informacion) return;
     if (esVistaMovilPanel()) {
-        if (panel_informacion.style.display === 'block' && panel_informacion.dataset.panelState !== 'collapsed') {
+        if (panelEstaVisible() && panel_informacion.dataset.panelState !== 'collapsed') {
             abrirPanelMovil();
         }
     } else {
@@ -132,7 +161,7 @@ if (panelMovilActivo && typeof panelMovilActivo.addEventListener === 'function')
 
 function recalcularAlturaPanelMovil() {
     if (!panel_informacion || !esVistaMovilPanel()) return;
-    if (panel_informacion.style.display !== 'block') return;
+    if (!panelEstaVisible()) return;
     if (panelMovilArrastre.activo) return;
 
     var estadoActual = panel_informacion.classList.contains('panel-expanded') ? 'expanded' : 'partial';
@@ -175,7 +204,7 @@ function obtenerCoordenadasEvento(event) {
 
 function iniciarArrastrePanel(event) {
     if (!esVistaMovilPanel()) return;
-    if (!panel_informacion || panel_informacion.style.display !== 'block') return;
+    if (!panelEstaVisible()) return;
 
     var interactiveTarget = event.target && event.target.closest ? event.target.closest('button, a, input, textarea, select, [role="button"]') : null;
     if (interactiveTarget && interactiveTarget.id === 'cerrar-panel') {
@@ -347,6 +376,11 @@ function aplicarResaltadoEnTab(tab) {
 }
 
 function openTab(tabName) {
+    var panelScroll = document.getElementById('contenedor_panel_info');
+    if (panelScroll) {
+        panelScroll.scrollTop = 0;
+    }
+
     infoContent.style.display = 'none';
     // if (interiorContent) interiorContent.style.display = 'none'; // Plantas deshabilitado
     salonesContent.style.display = 'none';
@@ -466,8 +500,14 @@ function renderizarSalonesDesdeEspacios(espacios) {
                 : (esp.numero_espacio || esp.codigo_completo || esp.nombre_descriptivo || 'Espacio');
 
             if (esp.id_horario && Number(esp.id_horario) > 0) {
+                var descAula = (esp.nombre_descriptivo && String(esp.nombre_descriptivo).trim() !== '')
+                    ? String(esp.nombre_descriptivo).trim()
+                    : String(esp.numero_espacio || esp.codigo_completo || '').trim();
+                var tituloAula = [String(esp.codigo_edificio || '').trim(), descAula].filter(Boolean).join(' - ');
+
+                salonItem.setAttribute('data-tipo-espacio', esp.id_tipo || '1');
                 salonItem.setAttribute('data-id-horario', esp.id_horario);
-                salonItem.setAttribute('data-nombre-salon', (esp.codigo_completo ? esp.codigo_completo + ' - ' : '') + nombre);
+                salonItem.setAttribute('data-nombre-salon', tituloAula);
                 salonItem.style.cursor = 'pointer';
                 salonItem.title = 'Clic para ver horario';
             }
@@ -489,13 +529,11 @@ function renderizarSalonesDesdeEspacios(espacios) {
 function establecerEstadoSkeletonTarjeta(cargando) {
     var contenedor = document.querySelector('.contenedor_edificio_info');
     var infoEl = document.getElementById('edificioInfo');
-    var infoTabContent = document.getElementById('infoContent');
     var panelScroll = document.getElementById('contenedor_panel_info');
     if (!contenedor) return;
 
     if (cargando) {
         if (infoEl) infoEl.textContent = '';
-        if (infoTabContent) infoTabContent.scrollTop = 0;
         if (panelScroll) panelScroll.scrollTop = 0;
         contenedor.classList.add('is-loading');
     } else {
@@ -645,9 +683,11 @@ function mostrarPanelEdificio(edificio) {
 
     window.edificioActual = edificio;
 
-    // Resetear listas internas
+    // Resetear listas internas y scroll
     document.getElementById('cubiculosList').innerHTML = '';
     document.getElementById('cubiculosLoading').style.display = 'none';
+    var panelScroll = document.getElementById('contenedor_panel_info');
+    if (panelScroll) panelScroll.scrollTop = 0;
     // actualizarVisibilidadPlantas([], 0); // Plantas deshabilitado temporalmente
 
     var codigoAPI = extraerCodigoEdificio(edificio);
@@ -865,20 +905,76 @@ function mostrarCubiculos(cubiculos) {
         pisoDiv.appendChild(pisoHeader);
 
         cubiculosPorPiso[piso].forEach(function (cubiculo) {
+            var tituloProf = String(
+                cubiculo.titulo_profesor ||
+                cubiculo.profesor_titulo ||
+                cubiculo.titulo ||
+                ''
+            ).trim();
+            var nombreBaseProf = String(cubiculo.profesor_asignado || '').trim();
+            var nombreConTitulo = formatearNombreProfesor(tituloProf, nombreBaseProf);
+
+            var emailProf = String(
+                cubiculo.email_profesor ||
+                cubiculo.profesor_email ||
+                cubiculo.email ||
+                ''
+            ).trim();
+            var telefonoProf = String(
+                cubiculo.telefono_profesor ||
+                cubiculo.profesor_telefono ||
+                cubiculo.telefono ||
+                ''
+            ).trim();
+            var extensionProf = String(
+                cubiculo.extension_profesor ||
+                cubiculo.profesor_extension ||
+                cubiculo.extension ||
+                ''
+            ).trim();
+
             var cubiculoItem = document.createElement('div');
             cubiculoItem.className = 'cubiculo-item';
             cubiculoItem.setAttribute('data-codigo-espacio', cubiculo.codigo_completo || cubiculo.numero_espacio || '');
             cubiculoItem.setAttribute('data-nombre-espacio', cubiculo.numero_espacio || cubiculo.codigo_completo || '');
-            cubiculoItem.setAttribute('data-profesor', cubiculo.profesor_asignado || '');
+            cubiculoItem.setAttribute('data-profesor', nombreConTitulo || nombreBaseProf);
+
+            var numEmpleado = String(cubiculo.numero_empleado || '').trim();
+            if (nombreBaseProf && numEmpleado !== '') {
+                var tituloCubiculo = [
+                    String(cubiculo.codigo_edificio || '').trim(),
+                    String(cubiculo.numero_espacio || cubiculo.codigo_completo || '').trim(),
+                    nombreConTitulo
+                ].filter(Boolean).join(' - ');
+
+                cubiculoItem.setAttribute('data-tipo-espacio', '4');
+                cubiculoItem.setAttribute('data-num-empleado', numEmpleado);
+                cubiculoItem.setAttribute('data-nombre-salon', tituloCubiculo);
+                if (tituloProf) cubiculoItem.setAttribute('data-profesor-titulo', tituloProf);
+                if (emailProf) cubiculoItem.setAttribute('data-profesor-email', emailProf);
+                if (telefonoProf) cubiculoItem.setAttribute('data-profesor-telefono', telefonoProf);
+                if (extensionProf) cubiculoItem.setAttribute('data-profesor-extension', extensionProf);
+                cubiculoItem.style.cursor = 'pointer';
+                cubiculoItem.title = 'Clic para ver horario';
+
+                window.datosProfesoresHorario[numEmpleado] = {
+                    titulo: tituloProf,
+                    nombre: nombreBaseProf,
+                    nombre_completo: nombreConTitulo,
+                    email: emailProf,
+                    telefono: telefonoProf,
+                    extension: extensionProf
+                };
+            }
 
             var codigoDiv = document.createElement('div');
             codigoDiv.className = 'cubiculo-codigo';
             codigoDiv.textContent = cubiculo.numero_espacio || cubiculo.codigo_completo;
 
             var profesorDiv = document.createElement('div');
-            if (cubiculo.profesor_asignado) {
+            if (nombreBaseProf) {
                 profesorDiv.className = 'cubiculo-profesor';
-                profesorDiv.textContent = cubiculo.profesor_asignado;
+                profesorDiv.textContent = nombreConTitulo;
             } else {
                 profesorDiv.className = 'cubiculo-profesor cubiculo-sin-profesor';
                 profesorDiv.textContent = 'Sin profesor asignado';
@@ -886,6 +982,50 @@ function mostrarCubiculos(cubiculos) {
 
             cubiculoItem.appendChild(codigoDiv);
             cubiculoItem.appendChild(profesorDiv);
+
+            // Datos de contacto en la tarjeta del cubículo
+            var telFormateado = formatearTelefonoExtension(telefonoProf, extensionProf);
+            if (nombreBaseProf && (emailProf || telFormateado)) {
+                var contactoDiv = document.createElement('div');
+                contactoDiv.className = 'cubiculo-contacto';
+
+                if (emailProf) {
+                    var emailRow = document.createElement('div');
+                    emailRow.className = 'cubiculo-contacto-item';
+
+                    var emailIcon = document.createElement('span');
+                    emailIcon.className = 'cubiculo-contacto-icono icono-email';
+                    emailIcon.setAttribute('aria-hidden', 'true');
+
+                    var emailLink = document.createElement('a');
+                    emailLink.href = 'mailto:' + emailProf;
+                    emailLink.textContent = emailProf;
+                    emailLink.title = 'Enviar correo a ' + nombreConTitulo;
+
+                    emailRow.appendChild(emailIcon);
+                    emailRow.appendChild(emailLink);
+                    contactoDiv.appendChild(emailRow);
+                }
+
+                if (telFormateado) {
+                    var telRow = document.createElement('div');
+                    telRow.className = 'cubiculo-contacto-item';
+
+                    var telIcon = document.createElement('span');
+                    telIcon.className = 'cubiculo-contacto-icono icono-telefono';
+                    telIcon.setAttribute('aria-hidden', 'true');
+
+                    var telText = document.createElement('span');
+                    telText.textContent = telFormateado;
+
+                    telRow.appendChild(telIcon);
+                    telRow.appendChild(telText);
+                    contactoDiv.appendChild(telRow);
+                }
+
+                cubiculoItem.appendChild(contactoDiv);
+            }
+
             pisoDiv.appendChild(cubiculoItem);
         });
 
