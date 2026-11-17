@@ -9,9 +9,9 @@ if ($idHorario <= 0) {
     exit;
 }
 
-$cacheDir = __DIR__ . '/../cache/';
+$cacheDir = sys_get_temp_dir() . '/horarios_cache/';
 if (!is_dir($cacheDir)) {
-    @mkdir($cacheDir, 0775, true);
+    mkdir($cacheDir, 0777, true);
 }
 
 $cacheFile    = $cacheDir . 'edupage_fiad_16.json';

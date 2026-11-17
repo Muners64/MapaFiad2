@@ -81,6 +81,11 @@
         right: 14px;
     }
 
+    /* Si el panel de información está visible, los botones quedan debajo y no reciben clics */
+    body:has(.panel_informacion[style*="display: block"]) .botones_laterales {
+        pointer-events: none;
+    }
+
     body.ui-navbar-collapsed .botones_laterales {
         top: 70px;
         right: 14px;
