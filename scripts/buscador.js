@@ -14,7 +14,6 @@ const searchContainer = document.querySelector('.search-input-box');
 const inputSearch = searchContainer.querySelector('input');
 const boxSuggestions = document.querySelector('.container-suggestions');
 
-let currentMarker = null;
 let busquedaTimer = null;
 let tokenBusqueda = 0;
 let resultadosBusqueda = [];
@@ -411,19 +410,6 @@ function ejecutarResultadoBusqueda(resultado) {
 
     map.setView(resultado.coordenadas, 19.4);
 
-    if (currentMarker) {
-        try {
-            map.removeLayer(currentMarker);
-        } catch (err) {
-            console.warn('No se pudo remover marcador anterior:', err);
-        }
-    }
-
-    currentMarker = L.marker(resultado.coordenadas)
-        .addTo(map)
-        .bindPopup(sanitizeHTML(resultado.nombre))
-        .openPopup();
-
     searchContainer.classList.remove('active');
 
     if (typeof mostrarPanelEdificio === 'function') {
@@ -447,6 +433,12 @@ function ejecutarResultadoBusqueda(resultado) {
                     });
                 }
             }
+        } else if (typeof window.mostrarEspaciosEnMapa === 'function') {
+            window.mostrarEspaciosEnMapa({
+                nombre: resultado.nombre,
+                codigo: resultado.codigo,
+                labelCoords: resultado.coordenadas
+            });
         }
     }
 }
@@ -532,4 +524,3 @@ function selectSearchResult(index) {
     inputSearch.value = selected.nombre || '';
     ejecutarResultadoBusqueda(selected);
 }
-
