@@ -16,8 +16,9 @@
     <link rel="stylesheet" href="styles/styles_rutas.css?v=21"> 
     <link rel="stylesheet" href="styles/styles_suggestion.css?v=21">
     <link rel="stylesheet" href="styles/styles_location.css?v=22">
-    <link rel="stylesheet" href="styles/styles_config.css?v=1">
-    <link rel="stylesheet" href="styles/styles_horario.css?v=2">
+    <link rel="stylesheet" href="styles/styles_config.css?v=2">
+    <link rel="stylesheet" href="styles/styles_horario.css?v=3">
+    <link rel="stylesheet" href="styles/styles_editor.css?v=1">
     <style>
         html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
         #mapContainer {
@@ -204,6 +205,10 @@
                 script.src = cdnUrl;
                 script.onload = resolve;
                 script.onerror = function() {
+                    if (!localUrl) {
+                        console.warn(cdnUrl + ' falló y no tiene respaldo local.');
+                        return resolve();
+                    }
                     console.warn(cdnUrl + ' falló, intentando versión local...');
                     var localScript = document.createElement('script');
                     localScript.src = localUrl;
@@ -225,7 +230,7 @@
                     'https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js',
                     'libs/leaflet-routing-machine/leaflet-routing-machine.js'
                 );
-                
+
                 loadLocalScripts();
             } catch(error) {
                 console.error('Error cargando librerías:', error);
@@ -233,11 +238,14 @@
         })();
 
         function loadLocalScripts() {
-            const version = '?v=3';
+            const version = '?v=6';
             var scripts = [
-                'scripts/script_capa.js' + version,           
+                'scripts/script_capa.js' + version,
                 'scripts/mapbox_router_php.js' + version,
-                'scripts/script_edificios.js' + version,      
+                'scripts/script_router.js' + version,
+                'scripts/script_editor_grafo.js' + version,
+                'scripts/script_puntos_interes.js' + version,
+                'scripts/script_edificios.js' + version,
                 'scripts/script_panel_derecho.js' + version,
                 'scripts/buscador.js' + version,
                 'scripts/script_barra_responsiva.js' + version,

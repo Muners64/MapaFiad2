@@ -2,7 +2,13 @@
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
 
 if (session_status() === PHP_SESSION_ACTIVE) {
     session_write_close();
@@ -13,7 +19,151 @@ require_once __DIR__ . '/../database/db_config.php';
 try {
     $pdo = conectarBD();
 
-    // 1. Endpoint ligero: SOLO coordenadas de polígonos (para carga inicial y caché)
+    // =========================================================================
+    // POST: Crear edificios nuevos (con polígono) y actualizar destinos
+    // =========================================================================
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $editEnabled = filter_var(getenv('EDIT_FLAG'), FILTER_VALIDATE_BOOLEAN);
+        if (!$editEnabled) {
+            http_response_code(403);
+            echo json_encode([
+                'error'   => true,
+                'mensaje' => 'Modo edición deshabilitado (EDIT_FLAG)'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        $raw  = file_get_contents('php://input');
+        $json = json_decode($raw, true);
+
+        if (!is_array($json)) {
+            http_response_code(400);
+            echo json_encode([
+                'error'   => true,
+                'mensaje' => 'JSON inválido en edificios.php'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        $nuevos       = is_array($json['edificios_nuevos'] ?? null) ? $json['edificios_nuevos'] : [];
+        $actualizados = is_array($json['edificios_actualizados'] ?? null) ? $json['edificios_actualizados'] : [];
+
+        $pdo->beginTransaction();
+
+        $insertados = 0;
+        if (!empty($nuevos)) {
+            $stmtEdif = $pdo->prepare("
+                INSERT INTO edificios (
+                    codigo,
+                    nombre_comun,
+                    descripcion,
+                    latitud,
+                    longitud,
+                    foto_principal_url,
+                    numero_pisos
+                ) VALUES (
+                    :codigo,
+                    :nombre,
+                    :descripcion,
+                    :latitud,
+                    :longitud,
+                    :foto,
+                    :pisos
+                )
+            ");
+
+            $stmtPoly = $pdo->prepare("
+                INSERT INTO coordenadas_poligono (
+                    id_edificio,
+                    latitud,
+                    longitud,
+                    orden
+                ) VALUES (
+                    :id_edificio,
+                    :latitud,
+                    :longitud,
+                    :orden
+                )
+            ");
+
+            foreach ($nuevos as $ed) {
+                $vertices = $ed['vertices'] ?? [];
+                if (!is_array($vertices) || count($vertices) < 3) {
+                    continue;
+                }
+
+                $codigo = strtoupper(trim((string)($ed['codigo'] ?? $ed['codigo_edificio'] ?? ('E_' . time()))));
+                $nombre = trim((string)($ed['nombre_comun'] ?? $codigo));
+                if ($nombre === '') $nombre = $codigo;
+
+                $desc  = isset($ed['descripcion']) && trim((string)$ed['descripcion']) !== '' ? trim((string)$ed['descripcion']) : null;
+                $lat   = (float)($ed['latitud'] ?? 0);
+                $lng   = (float)($ed['longitud'] ?? 0);
+                $foto  = trim((string)($ed['foto_principal_url'] ?? 'img/prueba.jpg'));
+                $pisos = max(1, (int)($ed['numero_pisos'] ?? 1));
+
+                $stmtEdif->execute([
+                    ':codigo'      => $codigo,
+                    ':nombre'      => $nombre,
+                    ':descripcion' => $desc,
+                    ':latitud'     => $lat,
+                    ':longitud'    => $lng,
+                    ':foto'        => $foto,
+                    ':pisos'       => $pisos
+                ]);
+
+                $nuevoId = (int)$pdo->lastInsertId();
+                $orden = 1;
+                foreach ($vertices as $v) {
+                    if (!isset($v['latitud'], $v['longitud'])) continue;
+                    $stmtPoly->execute([
+                        ':id_edificio' => $nuevoId,
+                        ':latitud'     => (float)$v['latitud'],
+                        ':longitud'    => (float)$v['longitud'],
+                        ':orden'       => (int)($v['orden'] ?? $orden)
+                    ]);
+                    $orden++;
+                }
+
+                $insertados++;
+            }
+        }
+
+        $modificados = 0;
+        if (!empty($actualizados)) {
+            $stmtUpd = $pdo->prepare("
+                UPDATE edificios
+                SET latitud = :latitud, longitud = :longitud
+                WHERE id_edificio = :id_edificio
+            ");
+
+            foreach ($actualizados as $upd) {
+                $idEd = (int)($upd['id_edificio'] ?? 0);
+                if ($idEd <= 0 || !isset($upd['latitud'], $upd['longitud'])) continue;
+
+                $stmtUpd->execute([
+                    ':latitud'     => (float)$upd['latitud'],
+                    ':longitud'    => (float)$upd['longitud'],
+                    ':id_edificio' => $idEd
+                ]);
+                $modificados++;
+            }
+        }
+
+        $pdo->commit();
+
+        echo json_encode([
+            'success'               => true,
+            'ok'                    => true,
+            'edificios_insertados'  => $insertados,
+            'edificios_modificados' => $modificados
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    // =========================================================================
+    // GET 1: SOLO coordenadas de polígonos (carga inicial y caché)
+    // =========================================================================
     if (isset($_GET['solo_poligonos']) && $_GET['solo_poligonos'] === '1') {
         header('Cache-Control: public, max-age=86400');
 
@@ -39,7 +189,9 @@ try {
         exit;
     }
 
-    // 2. Endpoint bajo demanda: detalle de UN solo edificio al hacer clic (por id o codigo)
+    // =========================================================================
+    // GET 2: Detalle bajo demanda de UN edificio al hacer clic (por id o codigo)
+    // =========================================================================
     $idEdificio = isset($_GET['id']) ? intval($_GET['id']) : null;
     $codigo = $_GET['codigo'] ?? null;
 
@@ -134,7 +286,9 @@ try {
         exit;
     }
 
-    // 3. Endpoint ligero para el buscador (sin polígonos pesados ni N+1)
+    // =========================================================================
+    // GET 3: Buscador ligero
+    // =========================================================================
     if (isset($_GET['buscar'])) {
         $buscar = $_GET['buscar'];
         $stmt = $pdo->prepare("
@@ -180,7 +334,9 @@ try {
         exit;
     }
 
-    // 4. Listado básico para sugerencias de búsqueda (1 consulta + 1 consulta de alias)
+    // =========================================================================
+    // GET 4: Listado básico para sugerencias y editor
+    // =========================================================================
     header('Cache-Control: public, max-age=3600');
     $stmt = $pdo->query("
         SELECT 
@@ -212,6 +368,9 @@ try {
     ], JSON_UNESCAPED_UNICODE);
 
 } catch (PDOException $e) {
+    if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     http_response_code(500);
     echo json_encode([
         'error' => true,
@@ -219,9 +378,13 @@ try {
         'detalle' => $e->getMessage()
     ], JSON_UNESCAPED_UNICODE);
 } catch (Exception $e) {
+    if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     http_response_code(500);
     echo json_encode([
         'error' => true,
-        'mensaje' => 'Error interno del servidor'
+        'mensaje' => 'Error interno del servidor',
+        'detalle' => $e->getMessage()
     ], JSON_UNESCAPED_UNICODE);
 }

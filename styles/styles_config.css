@@ -2,7 +2,9 @@
     position: absolute;
     right: 58px;
     top: 0;
-    width: 235px;
+    width: 250px;
+    max-height: 78vh;
+    overflow-y: auto;
     background: rgba(255, 255, 255, 0.97);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
@@ -25,7 +27,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 13.5px;
+    font-size: 14px;
     font-weight: 700;
     color: #1a1a1a;
     padding-bottom: 6px;
@@ -45,7 +47,22 @@
 .config-popover-body {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
+}
+
+.config-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6b7280;
+    padding: 4px 4px 2px 4px;
+}
+
+.config-section-divider {
+    height: 1px;
+    background: #eeeeee;
+    margin: 4px 0;
 }
 
 .config-poi-item {
@@ -80,4 +97,46 @@
     height: 16px;
     accent-color: #2563eb;
     cursor: pointer;
+}
+
+.fiad-poi-marker {
+    background: transparent;
+    border: none;
+}
+
+.fiad-poi-pin {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    color: #ffffff;
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s ease;
+}
+
+.fiad-poi-pin:hover {
+    transform: scale(1.12);
+}
+
+.fiad-poi-pin ion-icon {
+    font-size: 16px;
+    color: #ffffff;
+    pointer-events: none;
+}
+
+.fiad-poi-pin svg {
+    width: 16px;
+    height: 16px;
+    color: #ffffff;
+    pointer-events: none;
+}
+
+.config-poi-label svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    color: inherit;
 }

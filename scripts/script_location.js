@@ -3,6 +3,20 @@
   let ubicacionActiva = false;
   let watchId = null;
   let primerCentrado = true;
+  let ultimaPosEmitida = null;
+  let listenerMapaVinculado = false;
+
+  function distanciaMetros(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const rad = Math.PI / 180;
+    const dLat = (lat2 - lat1) * rad;
+    const dLng = (lng2 - lng1) * rad;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * rad) * Math.cos(lat2 * rad) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
 
   function crearHTMLUbicacion() {
     return `
@@ -39,6 +53,15 @@
     observer.observe(navbar, { attributes: true, attributeFilter: ['class'] });
   }
 
+  function vincularInteraccionUsuarioMapa() {
+    if (listenerMapaVinculado || typeof map === 'undefined') return;
+    // Si el usuario mueve el mapa manualmente, nunca volver a forzar el centrado
+    map.on('dragstart', () => {
+      primerCentrado = false;
+    });
+    listenerMapaVinculado = true;
+  }
+
   function inicializarUbicacion() {
     const contenedor = document.querySelector('.botones_laterales') || document.body;
 
@@ -47,6 +70,7 @@
     }
 
     sincronizarPosicionConNavbar();
+    vincularInteraccionUsuarioMapa();
 
     const btn = document.getElementById('btn-toggle-ubicacion');
     if (!btn) return;
@@ -76,8 +100,10 @@
         return;
       }
 
+      vincularInteraccionUsuarioMapa();
       ubicacionActiva = true;
       primerCentrado = true;
+      ultimaPosEmitida = null;
       actualizarEstadoUI('is-loading', 'Obteniendo ubicación...');
 
       if (watchId !== null) {
@@ -91,16 +117,39 @@
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
           const accuracy = pos.coords.accuracy;
+          const ahora = Date.now();
 
           guardarPreferenciaUbicacion(true);
           actualizarEstadoUI('is-active', 'Ubicación activa — Toca para desactivar');
 
+          const esPrimeraLectura = primerCentrado;
+          primerCentrado = false;
+
+          // Evitar disparar recálculos repetidos por ruido del GPS cuando el usuario está quieto
+          if (!esPrimeraLectura && ultimaPosEmitida) {
+            const metrosMovidos = distanciaMetros(ultimaPosEmitida.lat, ultimaPosEmitida.lng, lat, lng);
+            const tiempoTranscurrido = ahora - ultimaPosEmitida.timestamp;
+            if (metrosMovidos < 3 && tiempoTranscurrido < 5000) {
+              return;
+            }
+          }
+
+          ultimaPosEmitida = { lat, lng, accuracy, timestamp: ahora };
+
           window.dispatchEvent(new CustomEvent('ubicacionActualizada', {
-            detail: { lat, lng, accuracy }
+            detail: {
+              lat,
+              lng,
+              accuracy,
+              esPrimerCentrado: esPrimeraLectura
+            }
           }));
         },
         (error) => {
           ubicacionActiva = false;
+          primerCentrado = false;
+          ultimaPosEmitida = null;
+
           if (watchId !== null) {
             navigator.geolocation.clearWatch(watchId);
             watchId = null;
@@ -133,14 +182,28 @@
 
     function desactivarUbicacionManual() {
       ubicacionActiva = false;
+      primerCentrado = false;
+      ultimaPosEmitida = null;
       guardarPreferenciaUbicacion(false);
+
       if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
         watchId = null;
       }
+
       actualizarEstadoUI('is-no-permission', 'Ubicación desactivada — Toca para activar');
       window.dispatchEvent(new CustomEvent('ubicacionDesactivada'));
     }
+
+    window.UbicacionCampus = {
+      estaActiva: () => ubicacionActiva,
+      obtenerUltimaPosicion: () => ultimaPosEmitida ? { ...ultimaPosEmitida } : null,
+      centrarEnUsuario: () => {
+        if (ultimaPosEmitida && typeof map !== 'undefined') {
+          map.setView([ultimaPosEmitida.lat, ultimaPosEmitida.lng], Math.max(map.getZoom(), 18), { animate: true });
+        }
+      }
+    };
 
     // Estado inicial por defecto: rojo (sin ubicación)
     actualizarEstadoUI('is-no-permission', 'Ubicación desactivada — Toca para activar');

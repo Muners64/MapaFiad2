@@ -2,6 +2,7 @@ window.edificios = window.edificios || [];
 window.edificios_sugerido = window.edificios_sugerido || [];
 
 window.mapaEspaciosLayer = L.layerGroup().addTo(map);
+window.capaPoligonosEdificios = L.layerGroup().addTo(map);
 
 const CACHE_KEY_POLIGONOS = 'mapafiad_poligonos_v3';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -65,66 +66,6 @@ function limpiarMarcadoresEspacios() {
     }
 }
 
-function obtenerColorTipoEspacio(idTipo) {
-    if (Number(idTipo) === 1) return '#2b8a3e';
-    if (Number(idTipo) === 2) return '#0b7285';
-    if (Number(idTipo) === 3) return '#a61e4d';
-    return '#495057';
-}
-
-function nombreTipoEspacio(idTipo, nombreTipo) {
-    if (nombreTipo) return nombreTipo;
-    if (Number(idTipo) === 1) return 'Aula';
-    if (Number(idTipo) === 2) return 'Laboratorio';
-    if (Number(idTipo) === 3) return 'Taller';
-    return 'Espacio';
-}
-
-//Eliminar criculos confusos al seleccionar
-function mostrarEspaciosEnMapa(edificio, espacios) {
-    return;
-    limpiarMarcadoresEspacios();
-    if (!Array.isArray(espacios) || espacios.length === 0) return;
-
-    var puntoBase = edificio.labelCoords || edificio.coordenadasBusqueda || (edificio.coords && edificio.coords[0]);
-    if (!Array.isArray(puntoBase) || puntoBase.length < 2) return;
-
-    var espacAcad = espacios.filter(function (esp) {
-        var tipo = Number(esp.id_tipo);
-        return tipo === 1 || tipo === 2 || tipo === 3;
-    });
-
-    var radio = 0.00008;
-    espacAcad.forEach(function (esp, index) {
-        var angulo = (index / Math.max(espacAcad.length, 1)) * Math.PI * 2;
-        var lat = puntoBase[0] + Math.sin(angulo) * radio;
-        var lng = puntoBase[1] + Math.cos(angulo) * radio;
-
-        var color = obtenerColorTipoEspacio(esp.id_tipo);
-        var titulo = nombreTipoEspacio(esp.id_tipo, esp.nombre_tipo);
-        var esLaboratorio = Number(esp.id_tipo) === 2;
-        var nombre = esLaboratorio
-            ? (esp.nombre_descriptivo || esp.numero_espacio || esp.codigo_completo || 'Laboratorio')
-            : (esp.numero_espacio || esp.codigo_completo || 'N/A');
-        var codigo = esp.numero_espacio || esp.codigo_completo || '';
-        var detalleNombre = esLaboratorio
-            ? ('Nombre: ' + nombre + '<br>' + (codigo ? ('Codigo: ' + codigo + '<br>') : ''))
-            : ('Codigo: ' + nombre + '<br>');
-
-        L.circleMarker([lat, lng], {
-            radius: 5,
-            color: color,
-            fillColor: color,
-            fillOpacity: 0.8,
-            weight: 1
-        }).bindPopup(
-            '<b>' + titulo + '</b><br>' +
-            detalleNombre +
-            'Edificio: ' + (esp.codigo_edificio || edificio.codigo || 'N/A')
-        ).addTo(window.mapaEspaciosLayer);
-    });
-}
-
 function mostrarMarcadorEdificio(edificio) {
     limpiarMarcadoresEspacios();
     if (!edificio) return;
@@ -135,7 +76,6 @@ function mostrarMarcadorEdificio(edificio) {
 
     if (!Array.isArray(puntoBase) || puntoBase.length < 2) return;
 
-    // SVG idéntico al pin estándar de Leaflet (25x41) en verde FIAD (#2da832) para consistencia total
     var colorPin = '#2da832';
     var bordePin = '#1f7a23';
 
@@ -186,11 +126,14 @@ function guardarPoligonosEnCache(poligonos) {
     }
 }
 
-async function obtenerPoligonosIniciales() {
-    const enCache = leerPoligonosDesdeCache();
-    if (enCache) return enCache;
+async function obtenerPoligonosIniciales(ignorarCache) {
+    if (!ignorarCache) {
+        const enCache = leerPoligonosDesdeCache();
+        if (enCache) return enCache;
+    }
 
-    const response = await fetch(construirUrlApiEdificios('?solo_poligonos=1'));
+    const url = construirUrlApiEdificios('?solo_poligonos=1' + (ignorarCache ? ('&_t=' + Date.now()) : ''));
+    const response = await fetch(url);
     const data = await response.json();
 
     if (!data.success || !Array.isArray(data.poligonos)) {
@@ -238,6 +181,10 @@ function agruparPoligonosConSet(filasPoligonos) {
 }
 
 function dibujarPoligonos(edificiosLista) {
+    if (window.capaPoligonosEdificios) {
+        window.capaPoligonosEdificios.clearLayers();
+    }
+
     edificiosLista.forEach(function (edificio) {
         try {
             if (!edificio.coords || edificio.coords.length < 3) return;
@@ -247,10 +194,12 @@ function dibujarPoligonos(edificiosLista) {
                 fillColor: '#D7F2F7',
                 fillOpacity: 0.2,
                 weight: 1
-            }).addTo(map);
+            }).addTo(window.capaPoligonosEdificios);
 
-            // Delegamos el clic directamente a mostrarPanelEdificio para evitar peticiones duplicadas
             polygon.on('click', function () {
+                if (window.EditorMapa && typeof window.EditorMapa.estaActivo === 'function' && window.EditorMapa.estaActivo()) {
+                    return;
+                }
                 if (typeof mostrarPanelEdificio === 'function') {
                     mostrarPanelEdificio(edificio);
                 }
@@ -269,9 +218,10 @@ function dibujarPoligonos(edificiosLista) {
     });
 }
 
-async function cargarSugerenciasEnSegundoPlano() {
+async function cargarSugerenciasEnSegundoPlano(ignorarCache) {
     try {
-        const response = await fetch(construirUrlApiEdificios(''));
+        const url = construirUrlApiEdificios(ignorarCache ? ('?_t=' + Date.now()) : '');
+        const response = await fetch(url);
         const data = await response.json();
         if (!data.success || !Array.isArray(data.edificios)) return;
 
@@ -316,14 +266,17 @@ async function cargarSugerenciasEnSegundoPlano() {
     }
 }
 
-async function inicializarEdificios() {
+async function inicializarEdificios(ignorarCache) {
     try {
-        const filasPoligonos = await obtenerPoligonosIniciales();
+        if (ignorarCache) {
+            try { localStorage.removeItem(CACHE_KEY_POLIGONOS); } catch (e) {}
+        }
+        const filasPoligonos = await obtenerPoligonosIniciales(Boolean(ignorarCache));
         window.edificios = agruparPoligonosConSet(filasPoligonos);
         dibujarPoligonos(window.edificios);
         document.dispatchEvent(new CustomEvent('mapa:edificiosLoaded'));
 
-        cargarSugerenciasEnSegundoPlano();
+        await cargarSugerenciasEnSegundoPlano(Boolean(ignorarCache));
     } catch (error) {
         console.error('[ERROR] No se pudieron cargar los edificios desde API:', error);
     }
@@ -332,5 +285,482 @@ async function inicializarEdificios() {
 window.obtenerPuntoEdificio = obtenerPuntoEdificio;
 window.limpiarMarcadoresEspacios = limpiarMarcadoresEspacios;
 window.mostrarEspaciosEnMapa = mostrarMarcadorEdificio;
+window.recargarEdificiosDesdeBD = function () {
+    return inicializarEdificios(true);
+};
 
-inicializarEdificios();
+// =============================================================================
+// Plugin desacoplado de Edificios para EditorMapa
+// =============================================================================
+(function () {
+    var ctxEditor = null;
+    var editorActivo = false;
+    var herramientaActual = 'navegar';
+
+    var puntosEdificioActual = [];
+    var edificiosExistentes = [];
+    var edificiosNuevos = [];
+    var edificiosActualizados = {};
+
+    var capaPreviewEdificio = null;
+    var capaEdificiosNuevos = null;
+    var capaEdificiosExistentes = null;
+
+    function escaparHTML(str) {
+        return String(str || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function calcularCentroide(coordsLngLat) {
+        var latLngs = coordsLngLat.map(function (c) { return [c[1], c[0]]; });
+        var c = calcularCentroideCoordenadas(latLngs);
+        return c ? [c[1], c[0]] : [0, 0];
+    }
+
+    function crearIconoDestino(etiqueta, bgColor, borderColor) {
+        return L.divIcon({
+            className: 'fiad-edificio-dest-pin',
+            iconSize: [44, 22],
+            iconAnchor: [22, 11],
+            popupAnchor: [0, -12],
+            html: '<div class="fiad-edificio-dest-badge" style="background:' + bgColor + ';border:2px solid ' + borderColor + ';">🎯 ' + escaparHTML(etiqueta || 'ED') + '</div>'
+        });
+    }
+
+    function actualizarAccionesUI() {
+        if (!ctxEditor) return;
+        ctxEditor.setAccionesTrazo({
+            mostrarDeshacer: herramientaActual === 'edificio' && puntosEdificioActual.length >= 1,
+            mostrarFinalizar: herramientaActual === 'edificio' && puntosEdificioActual.length >= 3,
+            textoFinalizar: '✔ Cerrar edificio'
+        });
+    }
+
+    function limpiarEdificioEnCurso() {
+        puntosEdificioActual = [];
+        if (capaPreviewEdificio && typeof map !== 'undefined') {
+            map.removeLayer(capaPreviewEdificio);
+            capaPreviewEdificio = null;
+        }
+        actualizarAccionesUI();
+    }
+
+    function actualizarPreviewEdificio(cursorCoord) {
+        if (!editorActivo || typeof map === 'undefined') return;
+        if (capaPreviewEdificio) {
+            map.removeLayer(capaPreviewEdificio);
+            capaPreviewEdificio = null;
+        }
+        if (puntosEdificioActual.length === 0) return;
+
+        capaPreviewEdificio = L.layerGroup().addTo(map);
+        var ring = puntosEdificioActual.slice();
+        if (cursorCoord) ring.push(cursorCoord);
+
+        var latlngs = ring.map(function (c) { return [c[1], c[0]]; });
+        if (latlngs.length >= 3) {
+            L.polygon(latlngs, {
+                color: '#0d9488',
+                weight: 2.5,
+                dashArray: '5, 5',
+                fillColor: '#14b8a6',
+                fillOpacity: 0.25,
+                interactive: false
+            }).addTo(capaPreviewEdificio);
+
+            var centroide = calcularCentroide(ring);
+            L.circleMarker([centroide[1], centroide[0]], {
+                radius: 6,
+                color: '#ffffff',
+                weight: 2,
+                fillColor: '#0f766e',
+                fillOpacity: 1,
+                interactive: false
+            }).addTo(capaPreviewEdificio);
+        } else {
+            L.polyline(latlngs, {
+                color: '#0d9488',
+                weight: 2.5,
+                dashArray: '5, 5',
+                interactive: false
+            }).addTo(capaPreviewEdificio);
+        }
+
+        puntosEdificioActual.forEach(function (pt, idx) {
+            L.circleMarker([pt[1], pt[0]], {
+                radius: 5,
+                color: '#ffffff',
+                weight: 2,
+                fillColor: idx === 0 ? '#f59e0b' : '#0d9488',
+                fillOpacity: 1,
+                interactive: false
+            }).addTo(capaPreviewEdificio);
+        });
+    }
+
+    async function cargarEdificiosExistentes() {
+        try {
+            var res = await fetch(construirUrlApiEdificios('?_t=' + Date.now()));
+            if (res.ok) {
+                var data = await res.json();
+                var lista = Array.isArray(data.edificios) ? data.edificios : [];
+                edificiosExistentes = lista.map(function (ed) {
+                    return {
+                        id_edificio: parseInt(ed.id_edificio, 10),
+                        codigo: String(ed.codigo || '').trim(),
+                        nombre_comun: String(ed.nombre_comun || '').trim(),
+                        latitud: parseFloat(ed.latitud),
+                        longitud: parseFloat(ed.longitud)
+                    };
+                }).filter(function (ed) {
+                    return !isNaN(ed.id_edificio) && esLatLngValido(ed.latitud, ed.longitud);
+                });
+            }
+        } catch (e) {
+            console.warn('[EdificiosEditor] Error cargando edificios:', e);
+        }
+    }
+
+    function dibujarEdificiosExistentes() {
+        if (capaEdificiosExistentes && typeof map !== 'undefined') {
+            map.removeLayer(capaEdificiosExistentes);
+            capaEdificiosExistentes = null;
+        }
+        if (!editorActivo || typeof map === 'undefined' || edificiosExistentes.length === 0) return;
+
+        var arrastrable = (herramientaActual === 'navegar');
+        capaEdificiosExistentes = L.layerGroup().addTo(map);
+
+        edificiosExistentes.forEach(function (ed) {
+            var mod = edificiosActualizados[ed.id_edificio];
+            var lat = mod ? mod.latitud : ed.latitud;
+            var lng = mod ? mod.longitud : ed.longitud;
+            var etiqueta = ed.codigo || ('#' + ed.id_edificio);
+
+            var marker = L.marker([lat, lng], {
+                draggable: arrastrable,
+                icon: crearIconoDestino(etiqueta, mod ? '#d97706' : '#1e3a8a', mod ? '#fef08a' : '#93c5fd'),
+                zIndexOffset: 850
+            }).addTo(capaEdificiosExistentes);
+
+            if (arrastrable) {
+                marker.on('dragend', function (ev) {
+                    var ll = ev.target.getLatLng();
+                    edificiosActualizados[ed.id_edificio] = {
+                        id_edificio: ed.id_edificio,
+                        latitud: Number(ll.lat.toFixed(8)),
+                        longitud: Number(ll.lng.toFixed(8))
+                    };
+                    dibujarEdificiosExistentes();
+                    if (ctxEditor) ctxEditor.setEstado('🎯 Destino de <strong>' + escaparHTML(etiqueta) + '</strong> movido — presiona <strong>Guardar en BD</strong>.');
+                });
+
+                marker.on('click', function (ev) {
+                    L.DomEvent.stopPropagation(ev);
+                    var curMod = edificiosActualizados[ed.id_edificio];
+                    var curLat = curMod ? curMod.latitud : ed.latitud;
+                    var curLng = curMod ? curMod.longitud : ed.longitud;
+                    var titulo = (ed.nombre_comun && ed.nombre_comun !== etiqueta)
+                        ? (escaparHTML(ed.nombre_comun) + ' (' + escaparHTML(etiqueta) + ')')
+                        : escaparHTML(etiqueta);
+
+                    var html =
+                        '<div class="fiad-editor-popup">' +
+                          '<strong>🏢 ' + titulo + '</strong>' +
+                          '<span style="color:#475569;font-size:11px;">Punto final de ruta (BD):</span>' +
+                          '<div class="fiad-editor-grid-2">' +
+                            '<label>Latitud<input id="fiad-edif-lat-' + ed.id_edificio + '" type="number" step="0.00000001" value="' + curLat + '"></label>' +
+                            '<label>Longitud<input id="fiad-edif-lng-' + ed.id_edificio + '" type="number" step="0.00000001" value="' + curLng + '"></label>' +
+                          '</div>' +
+                          '<button class="fiad-editor-popup-btn" style="background:#2563eb;" onclick="window.EdificiosEditor._aplicarExistente(' + ed.id_edificio + ')">✔ Actualizar punto</button>' +
+                          (curMod ? '<button class="fiad-editor-popup-btn" style="background:#64748b;" onclick="window.EdificiosEditor._revertirExistente(' + ed.id_edificio + ')">↩️ Restaurar original</button>' : '') +
+                        '</div>';
+
+                    L.popup().setLatLng([curLat, curLng]).setContent(html).openOn(map);
+                });
+            }
+        });
+    }
+
+    function dibujarEdificiosNuevos() {
+        if (capaEdificiosNuevos && typeof map !== 'undefined') {
+            map.removeLayer(capaEdificiosNuevos);
+            capaEdificiosNuevos = null;
+        }
+        if (!editorActivo || typeof map === 'undefined' || edificiosNuevos.length === 0) return;
+
+        capaEdificiosNuevos = L.layerGroup().addTo(map);
+        edificiosNuevos.forEach(function (ed) {
+            var latlngs = (ed.vertices || []).map(function (v) { return [v.latitud, v.longitud]; });
+            if (latlngs.length < 3) return;
+
+            var cod = ed.codigo || 'NUEVO';
+            var poly = L.polygon(latlngs, {
+                color: '#0f766e',
+                weight: 2.5,
+                fillColor: '#14b8a6',
+                fillOpacity: 0.30
+            }).addTo(capaEdificiosNuevos);
+
+            var pin = L.marker([ed.latitud, ed.longitud], {
+                draggable: true,
+                icon: crearIconoDestino(cod, '#0f766e', '#ffffff'),
+                zIndexOffset: 950
+            }).addTo(capaEdificiosNuevos);
+
+            pin.on('dragend', function (ev) {
+                var ll = ev.target.getLatLng();
+                ed.latitud = Number(ll.lat.toFixed(8));
+                ed.longitud = Number(ll.lng.toFixed(8));
+                if (ctxEditor) ctxEditor.setEstado('🎯 Punto final de <strong>' + escaparHTML(cod) + '</strong> ajustado.');
+            });
+
+            function abrirPopupNuevo() {
+                var html =
+                    '<div class="fiad-editor-popup">' +
+                      '<strong>🏢 Edificio nuevo (pendiente BD)</strong>' +
+                      '<div>Código: <b>' + escaparHTML(cod) + '</b> · Nombre: <b>' + escaparHTML(ed.nombre_comun) + '</b></div>' +
+                      '<div class="fiad-editor-grid-2">' +
+                        '<label>Latitud<input id="fiad-new-edif-lat-' + escaparHTML(ed.temp_id) + '" type="number" step="0.00000001" value="' + ed.latitud + '"></label>' +
+                        '<label>Longitud<input id="fiad-new-edif-lng-' + escaparHTML(ed.temp_id) + '" type="number" step="0.00000001" value="' + ed.longitud + '"></label>' +
+                      '</div>' +
+                      '<div class="fiad-editor-grid-2">' +
+                        '<button class="fiad-editor-popup-btn" style="background:#0d9488;" onclick="window.EdificiosEditor._aplicarNuevo(\'' + escaparHTML(ed.temp_id) + '\')">✔ Aplicar</button>' +
+                        '<button class="fiad-editor-popup-btn" style="background:#475569;" onclick="window.EdificiosEditor._centroideNuevo(\'' + escaparHTML(ed.temp_id) + '\')">⌖ Centroide</button>' +
+                      '</div>' +
+                      '<button class="fiad-editor-popup-btn" style="background:#dc2626;" onclick="window.EdificiosEditor._eliminarNuevo(\'' + escaparHTML(ed.temp_id) + '\')">🗑️ Quitar edificio</button>' +
+                    '</div>';
+                L.popup().setLatLng([ed.latitud, ed.longitud]).setContent(html).openOn(map);
+            }
+
+            pin.on('click', function (ev) { L.DomEvent.stopPropagation(ev); abrirPopupNuevo(); });
+            poly.on('click', function (ev) {
+                if (herramientaActual !== 'navegar') return;
+                L.DomEvent.stopPropagation(ev);
+                abrirPopupNuevo();
+            });
+        });
+    }
+
+    function abrirConfirmacionEdificio() {
+        if (puntosEdificioActual.length < 3) return;
+        var centroide = calcularCentroide(puntosEdificioActual);
+        var html =
+            '<div class="fiad-editor-popup">' +
+              '<strong>🏢 Crear Edificio (' + puntosEdificioActual.length + ' vértices)</strong>' +
+              '<div style="font-size:11px;color:#475569;background:#f1f5f9;padding:5px;border-radius:4px;">' +
+                'Centroide inicial: <b>' + centroide[1].toFixed(8) + ', ' + centroide[0].toFixed(8) + '</b><br>' +
+                'Luego podrás arrastrar el pin <b>🎯</b> al acceso exacto.' +
+              '</div>' +
+              '<label>Código (edificio.codigo):' +
+                '<input id="fiad-crear-edif-codigo" type="text" placeholder="Ej. E23">' +
+              '</label>' +
+              '<label>Nombre (opcional):' +
+                '<input id="fiad-crear-edif-nombre" type="text" placeholder="Ej. Edificio 23">' +
+              '</label>' +
+              '<button class="fiad-editor-popup-btn" style="background:#0d9488;" onclick="window.EdificiosEditor._confirmarNuevo()">✔ Confirmar Edificio</button>' +
+            '</div>';
+
+        L.popup().setLatLng([centroide[1], centroide[0]]).setContent(html).openOn(map);
+    }
+
+    window.EdificiosEditor = {
+        _confirmarNuevo: function () {
+            if (puntosEdificioActual.length < 3) return;
+            var codEl = document.getElementById('fiad-crear-edif-codigo');
+            var nomEl = document.getElementById('fiad-crear-edif-nombre');
+            var codigo = (codEl && codEl.value.trim()) ? codEl.value.trim() : ('E_NEW_' + (edificiosNuevos.length + 1));
+            var nombre = (nomEl && nomEl.value.trim()) ? nomEl.value.trim() : codigo;
+
+            var centroide = calcularCentroide(puntosEdificioActual);
+            var vertices = puntosEdificioActual.map(function (c, idx) {
+                return {
+                    orden: idx + 1,
+                    latitud: Number(c[1].toFixed(8)),
+                    longitud: Number(c[0].toFixed(8))
+                };
+            });
+
+            edificiosNuevos.push({
+                temp_id: 'edif_' + Date.now(),
+                codigo: codigo,
+                nombre_comun: nombre,
+                descripcion: null,
+                latitud: Number(centroide[1].toFixed(8)),
+                longitud: Number(centroide[0].toFixed(8)),
+                foto_principal_url: 'img/prueba.jpg',
+                numero_pisos: 1,
+                vertices: vertices
+            });
+
+            map.closePopup();
+            limpiarEdificioEnCurso();
+            dibujarEdificiosNuevos();
+            if (ctxEditor) ctxEditor.setEstado('✅ Edificio <strong>' + escaparHTML(codigo) + '</strong> listo — arrastra su pin <strong>🎯</strong> si deseas ajustar su acceso.');
+        },
+        _aplicarExistente: function (idEdificio) {
+            var lat = parseFloat((document.getElementById('fiad-edif-lat-' + idEdificio) || {}).value);
+            var lng = parseFloat((document.getElementById('fiad-edif-lng-' + idEdificio) || {}).value);
+            if (!esLatLngValido(lat, lng)) return alert('Coordenadas inválidas.');
+            edificiosActualizados[idEdificio] = { id_edificio: idEdificio, latitud: Number(lat.toFixed(8)), longitud: Number(lng.toFixed(8)) };
+            map.closePopup();
+            dibujarEdificiosExistentes();
+        },
+        _revertirExistente: function (idEdificio) {
+            delete edificiosActualizados[idEdificio];
+            map.closePopup();
+            dibujarEdificiosExistentes();
+        },
+        _aplicarNuevo: function (tempId) {
+            var ed = edificiosNuevos.find(function (item) { return item.temp_id === tempId; });
+            if (!ed) return;
+            var lat = parseFloat((document.getElementById('fiad-new-edif-lat-' + tempId) || {}).value);
+            var lng = parseFloat((document.getElementById('fiad-new-edif-lng-' + tempId) || {}).value);
+            if (!esLatLngValido(lat, lng)) return alert('Coordenadas inválidas.');
+            ed.latitud = Number(lat.toFixed(8));
+            ed.longitud = Number(lng.toFixed(8));
+            map.closePopup();
+            dibujarEdificiosNuevos();
+        },
+        _centroideNuevo: function (tempId) {
+            var ed = edificiosNuevos.find(function (item) { return item.temp_id === tempId; });
+            if (!ed) return;
+            var c = calcularCentroide(ed.vertices.map(function (v) { return [v.longitud, v.latitud]; }));
+            ed.latitud = Number(c[1].toFixed(8));
+            ed.longitud = Number(c[0].toFixed(8));
+            map.closePopup();
+            dibujarEdificiosNuevos();
+        },
+        _eliminarNuevo: function (tempId) {
+            edificiosNuevos = edificiosNuevos.filter(function (ed) { return ed.temp_id !== tempId; });
+            map.closePopup();
+            dibujarEdificiosNuevos();
+        }
+    };
+
+    var moduloEditorEdificios = {
+        id: 'edificios',
+        orden: 30,
+        herramientas: [
+            {
+                id: 'edificio',
+                label: '🏢 Crear Edificio',
+                color: '#0d9488',
+                ayuda: '🏢 <strong>Crear Edificio:</strong> Haz clic en cada esquina del edificio (mínimo 3 vértices) y presiona <strong>Cerrar edificio</strong> o doble clic.'
+            }
+        ],
+        alActivarEditor: async function (ctx) {
+            ctxEditor = ctx;
+            editorActivo = true;
+            await cargarEdificiosExistentes();
+            dibujarEdificiosExistentes();
+            dibujarEdificiosNuevos();
+        },
+        alDesactivarEditor: function () {
+            editorActivo = false;
+            ctxEditor = null;
+            limpiarEdificioEnCurso();
+            if (capaEdificiosExistentes) { map.removeLayer(capaEdificiosExistentes); capaEdificiosExistentes = null; }
+            if (capaEdificiosNuevos) { map.removeLayer(capaEdificiosNuevos); capaEdificiosNuevos = null; }
+        },
+        alCambiarHerramienta: function (herramientaId) {
+            herramientaActual = herramientaId;
+            limpiarEdificioEnCurso();
+            dibujarEdificiosExistentes();
+            dibujarEdificiosNuevos();
+        },
+        onClick: function (e, herramientaId) {
+            if (herramientaId !== 'edificio') return;
+            var coord = [e.latlng.lng, e.latlng.lat];
+            if (puntosEdificioActual.length > 0) {
+                var prev = puntosEdificioActual[puntosEdificioActual.length - 1];
+                if (Math.hypot(prev[0] - coord[0], prev[1] - coord[1]) < 0.000002) return;
+            }
+            puntosEdificioActual.push(coord);
+            actualizarPreviewEdificio(coord);
+            actualizarAccionesUI();
+        },
+        onMouseMove: function (e, herramientaId) {
+            if (herramientaId === 'edificio' && puntosEdificioActual.length > 0) {
+                actualizarPreviewEdificio([e.latlng.lng, e.latlng.lat]);
+            }
+        },
+        onDblClick: function (e, herramientaId) {
+            if (herramientaId === 'edificio' && puntosEdificioActual.length >= 3) {
+                L.DomEvent.stopPropagation(e);
+                abrirConfirmacionEdificio();
+            }
+        },
+        deshacer: function (herramientaId) {
+            if (herramientaId !== 'edificio' || puntosEdificioActual.length === 0) return false;
+            puntosEdificioActual.pop();
+            if (puntosEdificioActual.length === 0) limpiarEdificioEnCurso();
+            else {
+                actualizarPreviewEdificio(null);
+                actualizarAccionesUI();
+            }
+            return true;
+        },
+        finalizar: function (herramientaId) {
+            if (herramientaId !== 'edificio') return false;
+            if (puntosEdificioActual.length >= 3) abrirConfirmacionEdificio();
+            else limpiarEdificioEnCurso();
+            return true;
+        },
+        cancelar: function (herramientaId) {
+            if (herramientaId !== 'edificio' || puntosEdificioActual.length === 0) return false;
+            limpiarEdificioEnCurso();
+            return true;
+        },
+        recargar: async function () {
+            await cargarEdificiosExistentes();
+            dibujarEdificiosExistentes();
+            dibujarEdificiosNuevos();
+        },
+        guardar: async function () {
+            var listaActualizados = Object.values(edificiosActualizados);
+            if (edificiosNuevos.length === 0 && listaActualizados.length === 0) {
+                return { ok: true };
+            }
+
+            var res = await fetch(construirUrlApiEdificios(''), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    edificios_nuevos: edificiosNuevos,
+                    edificios_actualizados: listaActualizados
+                })
+            });
+            var data = await res.json();
+
+            if (data.ok !== false) {
+                edificiosNuevos = [];
+                edificiosActualizados = {};
+                await cargarEdificiosExistentes();
+                dibujarEdificiosNuevos();
+                dibujarEdificiosExistentes();
+                await inicializarEdificios(true);
+
+                var partes = [];
+                if (data.edificios_insertados > 0) partes.push('Edificios creados: ' + data.edificios_insertados);
+                if (data.edificios_modificados > 0) partes.push('Destinos de edificios actualizados: ' + data.edificios_modificados);
+                return { ok: true, resumen: partes.join(' · ') };
+            }
+
+            return { ok: false, mensaje: data.mensaje || 'Error guardando edificios' };
+        }
+    };
+
+    if (window.EditorMapa && typeof window.EditorMapa.registrarModulo === 'function') {
+        window.EditorMapa.registrarModulo(moduloEditorEdificios);
+    } else {
+        window._editorModulosPendientes = window._editorModulosPendientes || [];
+        window._editorModulosPendientes.push(moduloEditorEdificios);
+    }
+})();
+
+inicializarEdificios(false);

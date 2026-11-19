@@ -2,8 +2,9 @@
 var map = L.map('map', {
     center: [31.86507019358021, -116.6675618186344],
     zoom: 17,
-    maxZoom: 60,
-    minZoom: 10,
+    minZoom: 0,
+    maxZoom: 24,
+    zoomSnap: 0.25,
     zoomControl: false
 });
 
@@ -15,15 +16,17 @@ L.control.scale({
     metric: true
 }).addTo(map);
 
-var Satelite = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 22,
+var Satelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxNativeZoom: 19,
+    maxZoom: 24,
     attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
 });
 
 var Atlas = L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://www.thunderforest.com/">Thunderforest</a>',
     subdomains: 'abc',
-    maxZoom: 22
+    maxNativeZoom: 18,
+    maxZoom: 24
 }).addTo(map);
 
 // FUNCION PARA CAMBIAR CAPA
@@ -33,12 +36,10 @@ function cambio_capa() {
         map.removeLayer(Atlas);
         Satelite.addTo(map);
         mapa_anterior = Satelite;
-        map.setMaxZoom(19);
     } else {
         map.removeLayer(Satelite);
         Atlas.addTo(map);
         mapa_anterior = Atlas;
-        map.setMaxZoom(22);
     }
 }
 
