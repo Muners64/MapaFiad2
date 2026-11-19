@@ -347,10 +347,11 @@
 
 .salon-item {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
     margin-bottom: 10px;
-    padding: 13px 15px;
+    padding: 12px 15px;
     cursor: pointer;
     border-radius: 12px;
     transition: all 0.2s ease;
@@ -366,10 +367,55 @@
     border-color: var(--accent-green);
 }
 
+.salon-info-principal {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+    flex: 1;
+    min-width: 0;
+}
+
+.salon-tipo-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    margin-left: -7px;
+    border-radius: 6px;
+    font-size: 0.69rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    line-height: 1.25;
+    background: #e8f5e9;
+    color: #248f28;
+    border: 1px solid #bbf7d0;
+}
+
+.salon-tipo-badge.badge-aula {
+    background: #e8f5e9;
+    color: #248f28;
+    border-color: #bbf7d0;
+}
+
+.salon-tipo-badge.badge-laboratorio {
+    background: #e0f2fe;
+    color: #0369a1;
+    border-color: #bae6fd;
+}
+
+.salon-tipo-badge.badge-taller {
+    background: #f3e8ff;
+    color: #7e22ce;
+    border-color: #e9d5ff;
+}
+
 .salon-codigo {
     font-weight: 700;
     font-size: 14.5px;
+    line-height: 1.3;
     color: var(--text-dark);
+    word-break: break-word;
 }
 
 .salon-mensaje-vacio {
@@ -916,27 +962,33 @@
     }
 }
 
-/* Spinner circular limpio centrado en el área de contenido */
+/* Estado de carga limpio unificado para cualquier pestaña activa (Información, Salones o Cubículos) */
 @keyframes fiadSpin {
     0%   { transform: translate(-50%, -50%) rotate(0deg); }
     100% { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
-@keyframes fiadSpinInline {
-    to { transform: rotate(360deg); }
+.panel_informacion.is-panel-loading #infoContent > *,
+.panel_informacion.is-panel-loading #salonesContent > *,
+.panel_informacion.is-panel-loading #cubiculosContent > * {
+    visibility: hidden !important;
 }
 
-.contenedor_edificio_info.is-loading > * {
-    display: none !important;
+.panel_informacion.is-panel-loading #contenedor_panel_info {
+    overflow-y: hidden !important;
 }
 
-.panel_informacion:has(.contenedor_edificio_info.is-loading)::after {
+.panel_informacion.is-panel-loading .panel-custom-scrollbar {
+    opacity: 0 !important;
+}
+
+.panel_informacion.is-panel-loading::after {
     content: "";
     position: absolute;
-    top: 58%;
+    top: 62%;
     left: 50%;
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
     border: 3px solid rgba(45, 168, 50, 0.22);
     border-top-color: var(--accent-green);
     border-radius: 50%;
@@ -945,27 +997,6 @@
     pointer-events: none;
 }
 
-#contenedor_panel_info:has(.contenedor_edificio_info.is-loading) {
-    overflow-y: hidden !important;
-}
-
-.panel-scroll-wrapper:has(.contenedor_edificio_info.is-loading) .panel-custom-scrollbar {
-    opacity: 0 !important;
-}
-
-.spinner-lista-centro {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 160px;
-}
-
-.spinner-lista-centro::after {
-    content: "";
-    width: 30px;
-    height: 30px;
-    border: 3px solid rgba(45, 168, 50, 0.22);
-    border-top-color: var(--accent-green);
-    border-radius: 50%;
-    animation: fiadSpinInline 0.7s linear infinite;
+.panel_informacion.panel-minimized::after {
+    display: none !important;
 }

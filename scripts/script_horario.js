@@ -86,7 +86,7 @@
                     <div class="horario-modal-header">
                         <div class="horario-modal-titulo-wrap">
                             <h3 id="horarioModalTitulo">Horario del Espacio</h3>
-                            <div class="horario-modal-subtitulo" id="horarioModalSubtitulo"></div>
+                            <div class="horario-modal-estado" id="horarioModalEstado"></div>
                             <div class="horario-modal-contacto" id="horarioModalContacto"></div>
                         </div>
                         <button type="button" id="horarioModalCerrar" class="horario-modal-cerrar" aria-label="Cerrar horario">&times;</button>
@@ -253,7 +253,7 @@
         const cacheKey = `${esCubiculo ? 'emp' : 'aula'}_${identificador}`;
 
         const tituloEl = document.getElementById('horarioModalTitulo');
-        const subtituloEl = document.getElementById('horarioModalSubtitulo');
+        const estadoEl = document.getElementById('horarioModalEstado');
         const contactoEl = document.getElementById('horarioModalContacto');
         const bodyEl = document.getElementById('horarioModalBody');
 
@@ -269,7 +269,7 @@
                 : `Cargando ${esCubiculo ? 'docente' : 'espacio'} #${identificador}...`);
 
         tituloEl.textContent = tituloInicial;
-        subtituloEl.innerHTML = '';
+        estadoEl.innerHTML = '';
         contactoEl.innerHTML = esCubiculo ? renderizarContactoProfesor(infoInicial) : '';
         bodyEl.innerHTML = '<div class="horario-loading">Consultando horario actualizado...</div>';
         overlayEl.classList.add('abierto');
@@ -330,17 +330,17 @@
             let badgeHtml = '';
             if (esCubiculo) {
                 if (data.ocupado_ahora) {
-                    badgeHtml = `<span class="horario-badge-estado ocupado">En clase ahora (${data.clase_actual.materia})</span>`;
+                    badgeHtml = `<span class="horario-badge-estado ocupado">En clase ahora (${escaparHtml(data.clase_actual.materia)})</span>`;
                 }
             } else {
                 const badgeClase = data.ocupado_ahora ? 'ocupado' : 'libre';
                 const badgeTexto = data.ocupado_ahora
-                    ? `Ocupado ahora (${data.clase_actual.materia})`
+                    ? `Ocupado ahora (${escaparHtml(data.clase_actual.materia)})`
                     : 'Disponible ahora';
                 badgeHtml = `<span class="horario-badge-estado ${badgeClase}">${badgeTexto}</span>`;
             }
 
-            subtituloEl.innerHTML = badgeHtml;
+            estadoEl.innerHTML = badgeHtml;
 
             bodyEl.innerHTML = renderizarCuadricula(data) + renderizarVistaMovil(data);
 

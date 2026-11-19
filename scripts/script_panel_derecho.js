@@ -8,8 +8,30 @@ var cacheCubiculosEdificios = new Map();
 var tokenSeleccionActual = 0;
 var controladorFetchActual = null;
 
+// Control unificado de carga por sección
+var tabActualPanel = 'info';
+var cargandoDetalleActual = false;
+var cargandoSalonesActual = false;
+var cargandoCubiculosActual = false;
+
 // Registro global para compartir datos de contacto y título con el modal de horarios
 window.datosProfesoresHorario = window.datosProfesoresHorario || {};
+
+function actualizarEstadoCargaVisualPanel() {
+    if (!panel_informacion) return;
+
+    var cargandoEnTabActiva = false;
+    if (tabActualPanel === 'info') {
+        cargandoEnTabActiva = cargandoDetalleActual;
+    } else if (tabActualPanel === 'salones') {
+        cargandoEnTabActiva = cargandoSalonesActual;
+    } else if (tabActualPanel === 'cubiculos') {
+        cargandoEnTabActiva = cargandoCubiculosActual;
+    }
+
+    panel_informacion.classList.toggle('is-panel-loading', cargandoEnTabActiva);
+    requestAnimationFrame(actualizarScrollbarPanel);
+}
 
 cerrarpanel.addEventListener('click', function () {
     tokenSeleccionActual++;
@@ -17,8 +39,11 @@ cerrarpanel.addEventListener('click', function () {
         controladorFetchActual.abort();
         controladorFetchActual = null;
     }
+    cargandoDetalleActual = false;
+    cargandoSalonesActual = false;
+    cargandoCubiculosActual = false;
     panel_informacion.style.display = 'none';
-    panel_informacion.classList.remove('panel-minimized', 'panel-partial', 'panel-expanded');
+    panel_informacion.classList.remove('panel-minimized', 'panel-partial', 'panel-expanded', 'is-panel-loading');
     panel_informacion.dataset.panelState = 'closed';
     if (typeof window.limpiarMarcadoresEspacios === 'function') {
         window.limpiarMarcadoresEspacios();
@@ -43,7 +68,7 @@ var resaltadoPendiente = null;
 function actualizarScrollbarPanel() {
     if (!contenedorPanelInfo || !panelCustomScrollbar || !panelCustomScrollThumb) return;
 
-    if (!panelEstaVisible() || panel_informacion.classList.contains('panel-minimized')) {
+    if (!panelEstaVisible() || panel_informacion.classList.contains('panel-minimized') || panel_informacion.classList.contains('is-panel-loading')) {
         panelCustomScrollbar.classList.remove('is-visible');
         return;
     }
@@ -259,7 +284,7 @@ function minimizarPanelMovil() {
 function cerrarPanelMovil() {
     if (!panel_informacion) return;
     panel_informacion.style.removeProperty('--panel-height');
-    panel_informacion.classList.remove('panel-minimized', 'panel-partial', 'panel-expanded');
+    panel_informacion.classList.remove('panel-minimized', 'panel-partial', 'panel-expanded', 'is-panel-loading');
     panel_informacion.dataset.panelState = 'closed';
     panel_informacion.style.display = 'none';
 }
@@ -521,6 +546,7 @@ function aplicarResaltadoEnTab(tab) {
 }
 
 function openTab(tabName) {
+    tabActualPanel = tabName;
     if (contenedorPanelInfo) {
         contenedorPanelInfo.scrollTop = 0;
     }
@@ -551,7 +577,7 @@ function openTab(tabName) {
         cubiculosTab.classList.add('active');
     }
 
-    requestAnimationFrame(actualizarScrollbarPanel);
+    actualizarEstadoCargaVisualPanel();
 }
 
 window.abrirTabPanel = openTab;
@@ -607,6 +633,14 @@ function agruparEspaciosPorPiso(espacios) {
     return porPiso;
 }
 
+function obtenerClaseBadgeEspacio(esp) {
+    var tipoId = Number(esp.id_tipo);
+    var nombreTipo = String(esp.nombre_tipo || '').toLowerCase();
+    if (tipoId === 2 || nombreTipo.indexOf('lab') !== -1) return 'badge-laboratorio';
+    if (tipoId === 3 || nombreTipo.indexOf('taller') !== -1) return 'badge-taller';
+    return 'badge-aula';
+}
+
 function renderizarSalonesDesdeEspacios(espacios) {
     var salonesContainer = document.getElementById('salonesContent');
     var salonesList = salonesContainer.getElementsByTagName('ul')[0];
@@ -640,7 +674,6 @@ function renderizarSalonesDesdeEspacios(espacios) {
             salonItem.setAttribute('data-nombre-espacio', esp.nombre_descriptivo || esp.numero_espacio || esp.codigo_completo || '');
             salonItem.setAttribute('data-profesor', esp.profesor_asignado || '');
 
-            var tipo = esp.nombre_tipo ? ('[' + esp.nombre_tipo + '] ') : '';
             var esLaboratorio = Number(esp.id_tipo) === 2;
             var nombre = esLaboratorio
                 ? (esp.nombre_descriptivo || esp.numero_espacio || esp.codigo_completo || 'Laboratorio')
@@ -659,11 +692,22 @@ function renderizarSalonesDesdeEspacios(espacios) {
                 salonItem.title = 'Clic para ver horario';
             }
 
+            var infoPrincipal = document.createElement('div');
+            infoPrincipal.className = 'salon-info-principal';
+
+            if (esp.nombre_tipo && String(esp.nombre_tipo).trim() !== '') {
+                var badgeTipo = document.createElement('span');
+                badgeTipo.className = 'salon-tipo-badge ' + obtenerClaseBadgeEspacio(esp);
+                badgeTipo.textContent = String(esp.nombre_tipo).trim();
+                infoPrincipal.appendChild(badgeTipo);
+            }
+
             var salonCodigo = document.createElement('div');
             salonCodigo.className = 'salon-codigo';
-            salonCodigo.textContent = tipo + nombre;
+            salonCodigo.textContent = nombre;
+            infoPrincipal.appendChild(salonCodigo);
 
-            salonItem.appendChild(salonCodigo);
+            salonItem.appendChild(infoPrincipal);
             pisoDiv.appendChild(salonItem);
         });
 
@@ -671,21 +715,6 @@ function renderizarSalonesDesdeEspacios(espacios) {
     });
 
     aplicarResaltadoEnTab('salones');
-    requestAnimationFrame(actualizarScrollbarPanel);
-}
-
-function establecerEstadoSkeletonTarjeta(cargando) {
-    var contenedor = document.querySelector('.contenedor_edificio_info');
-    var infoEl = document.getElementById('edificioInfo');
-    if (!contenedor) return;
-
-    if (cargando) {
-        if (infoEl) infoEl.textContent = '';
-        if (contenedorPanelInfo) contenedorPanelInfo.scrollTop = 0;
-        contenedor.classList.add('is-loading');
-    } else {
-        contenedor.classList.remove('is-loading');
-    }
     requestAnimationFrame(actualizarScrollbarPanel);
 }
 
@@ -746,6 +775,10 @@ function cargarSalones(codigoEdificio, tokenEsperado) {
     if (cacheEspaciosEdificios.has(codigoEdificio)) {
         var espCached = cacheEspaciosEdificios.get(codigoEdificio);
         renderizarSalonesDesdeEspacios(espCached);
+        if (token === tokenSeleccionActual) {
+            cargandoSalonesActual = false;
+            actualizarEstadoCargaVisualPanel();
+        }
         if (typeof window.mostrarEspaciosEnMapa === 'function' && window.edificioActual) {
             window.mostrarEspaciosEnMapa(window.edificioActual, espCached);
         }
@@ -754,8 +787,12 @@ function cargarSalones(codigoEdificio, tokenEsperado) {
 
     var salonesContainer = document.getElementById('salonesContent');
     var salonesList = salonesContainer.getElementsByTagName('ul')[0];
-    salonesList.innerHTML = '<div class="spinner-lista-centro"></div>';
-    requestAnimationFrame(actualizarScrollbarPanel);
+    salonesList.innerHTML = '';
+
+    if (token === tokenSeleccionActual) {
+        cargandoSalonesActual = true;
+        actualizarEstadoCargaVisualPanel();
+    }
 
     var apiUrl = construirUrlApi('espacios.php?edificio=' + encodeURIComponent(codigoEdificio) + '&limit=200');
 
@@ -774,6 +811,9 @@ function cargarSalones(codigoEdificio, tokenEsperado) {
             if (token !== tokenSeleccionActual) return;
 
             renderizarSalonesDesdeEspacios(espaciosAcad);
+            cargandoSalonesActual = false;
+            actualizarEstadoCargaVisualPanel();
+
             if (typeof window.mostrarEspaciosEnMapa === 'function' && window.edificioActual) {
                 window.mostrarEspaciosEnMapa(window.edificioActual, espaciosAcad);
             }
@@ -783,6 +823,8 @@ function cargarSalones(codigoEdificio, tokenEsperado) {
             console.error('Error al cargar salones:', error);
             if (token === tokenSeleccionActual) {
                 renderizarSalonesDesdeEspacios([]);
+                cargandoSalonesActual = false;
+                actualizarEstadoCargaVisualPanel();
             }
         });
 }
@@ -795,8 +837,10 @@ function aplicarDatosEdificioEnDOM(ed, edificioBase, token) {
 
     var imagenPrincipal = ed.foto_principal_url || 'img/prueba.jpg';
     aplicarImagenSegura(document.getElementById('edificioImagen'), imagenPrincipal, token, function () {
-        establecerEstadoSkeletonTarjeta(false);
-        requestAnimationFrame(actualizarScrollbarPanel);
+        if (token === tokenSeleccionActual) {
+            cargandoDetalleActual = false;
+            actualizarEstadoCargaVisualPanel();
+        }
     });
 
     /* Plantas deshabilitado temporalmente
@@ -835,19 +879,39 @@ function mostrarPanelEdificio(edificio) {
 
     window.edificioActual = edificio;
 
-    // Resetear listas internas y scroll
-    document.getElementById('cubiculosList').innerHTML = '';
+    // 2. Limpiar contenido anterior de TODAS las pestañas al instante
+    var infoEl = document.getElementById('edificioInfo');
+    var imgEl = document.getElementById('edificioImagen');
+    var salonesListEl = document.getElementById('salonesContent').getElementsByTagName('ul')[0];
+    var cubiculosListEl = document.getElementById('cubiculosList');
+
+    if (infoEl) infoEl.textContent = '';
+    if (imgEl) {
+        imgEl.removeAttribute('src');
+        imgEl.alt = edificio.nombre;
+    }
+    if (salonesListEl) salonesListEl.innerHTML = '';
+    if (cubiculosListEl) cubiculosListEl.innerHTML = '';
     document.getElementById('cubiculosLoading').style.display = 'none';
     if (contenedorPanelInfo) contenedorPanelInfo.scrollTop = 0;
     // actualizarVisibilidadPlantas([], 0); // Plantas deshabilitado temporalmente
 
     var codigoAPI = extraerCodigoEdificio(edificio);
 
-    // Abrir panel de inmediato
-    document.getElementById('edificioImagen').alt = edificio.nombre;
+    // 3. Determinar estados de carga iniciales según caché
+    var tieneDetalleCache = Boolean(codigoAPI && cacheDetalleEdificios.has(codigoAPI));
+    var tieneEspaciosCache = Boolean(codigoAPI && cacheEspaciosEdificios.has(codigoAPI));
+    var tieneCubiculosCache = Boolean(codigoAPI && cacheCubiculosEdificios.has(codigoAPI));
+
+    cargandoDetalleActual = Boolean(codigoAPI && !tieneDetalleCache);
+    cargandoSalonesActual = Boolean(codigoAPI && !tieneEspaciosCache);
+    cargandoCubiculosActual = Boolean(codigoAPI && tabActualPanel === 'cubiculos' && !tieneCubiculosCache);
+
+    // 4. Abrir panel de inmediato con estado limpio
     document.getElementById('edificioNombre').innerText = edificio.nombre;
     panel_informacion.style.display = 'block';
     panel_informacion.dataset.panelState = esVistaMovilPanel() ? 'partial' : 'expanded';
+    actualizarEstadoCargaVisualPanel();
 
     if (esVistaMovilPanel()) {
         requestAnimationFrame(function () {
@@ -858,73 +922,83 @@ function mostrarPanelEdificio(edificio) {
         requestAnimationFrame(actualizarScrollbarPanel);
     }
 
-    if (cubiculosContent.style.display === 'block' && codigoAPI) {
+    // 5. Si la pestaña Cubículos está activa, iniciar su carga de inmediato
+    if (tabActualPanel === 'cubiculos' && codigoAPI) {
         cargarCubiculos(codigoAPI, miToken);
     }
 
-    // Si ya está en caché en memoria: renderizado instantáneo (0 ms, 0 fetch)
-    if (codigoAPI && cacheDetalleEdificios.has(codigoAPI)) {
+    // 6. Si ya está en caché en memoria: renderizado instantáneo
+    if (tieneDetalleCache) {
         var edCached = cacheDetalleEdificios.get(codigoAPI);
         aplicarDatosEdificioEnDOM(edCached, edificio, miToken);
 
-        if (cacheEspaciosEdificios.has(codigoAPI)) {
+        if (tieneEspaciosCache) {
             var espCached = cacheEspaciosEdificios.get(codigoAPI);
             renderizarSalonesDesdeEspacios(espCached);
+            cargandoSalonesActual = false;
+            actualizarEstadoCargaVisualPanel();
             if (typeof window.mostrarEspaciosEnMapa === 'function') {
                 window.mostrarEspaciosEnMapa(edificio, espCached);
             }
         } else {
             cargarSalones(codigoAPI, miToken);
         }
+    } else if (codigoAPI) {
+        var urlEdificio = construirUrlApi('edificios.php?codigo=' + encodeURIComponent(codigoAPI));
+        var urlEspacios = construirUrlApi('espacios.php?edificio=' + encodeURIComponent(codigoAPI) + '&limit=200');
+
+        Promise.all([
+            fetch(urlEdificio, { signal: signal }).then(function (r) { return r.json(); }),
+            fetch(urlEspacios, { signal: signal }).then(function (r) { return r.json(); })
+        ])
+            .then(function (responses) {
+                var dataEdificio = responses[0];
+                var dataEspacios = responses[1];
+
+                if (dataEdificio.success && dataEdificio.edificio) {
+                    cacheDetalleEdificios.set(codigoAPI, dataEdificio.edificio);
+                }
+
+                var espaciosAcad = (dataEspacios.success && Array.isArray(dataEspacios.espacios))
+                    ? dataEspacios.espacios.filter(function (esp) {
+                        var tipo = Number(esp.id_tipo);
+                        return tipo === 1 || tipo === 2 || tipo === 3;
+                    })
+                    : [];
+                cacheEspaciosEdificios.set(codigoAPI, espaciosAcad);
+
+                if (miToken !== tokenSeleccionActual) return;
+
+                renderizarSalonesDesdeEspacios(espaciosAcad);
+                cargandoSalonesActual = false;
+
+                if (dataEdificio.success && dataEdificio.edificio) {
+                    aplicarDatosEdificioEnDOM(dataEdificio.edificio, edificio, miToken);
+                } else {
+                    cargandoDetalleActual = false;
+                }
+
+                actualizarEstadoCargaVisualPanel();
+
+                if (typeof window.mostrarEspaciosEnMapa === 'function') {
+                    window.mostrarEspaciosEnMapa(edificio, espaciosAcad);
+                }
+            })
+            .catch(function (error) {
+                if (error && error.name === 'AbortError') return;
+                console.error('No se pudo cargar detalle de edificio desde API:', error);
+                if (miToken === tokenSeleccionActual) {
+                    renderizarSalonesDesdeEspacios([]);
+                    cargandoDetalleActual = false;
+                    cargandoSalonesActual = false;
+                    actualizarEstadoCargaVisualPanel();
+                }
+            });
     } else {
-        // Mostrar spinner limpio mientras llega la única petición de detalle + espacios
-        establecerEstadoSkeletonTarjeta(true);
-
-        if (codigoAPI) {
-            var urlEdificio = construirUrlApi('edificios.php?codigo=' + encodeURIComponent(codigoAPI));
-            var urlEspacios = construirUrlApi('espacios.php?edificio=' + encodeURIComponent(codigoAPI) + '&limit=200');
-
-            Promise.all([
-                fetch(urlEdificio, { signal: signal }).then(function (r) { return r.json(); }),
-                fetch(urlEspacios, { signal: signal }).then(function (r) { return r.json(); })
-            ])
-                .then(function (responses) {
-                    var dataEdificio = responses[0];
-                    var dataEspacios = responses[1];
-
-                    if (dataEdificio.success && dataEdificio.edificio) {
-                        cacheDetalleEdificios.set(codigoAPI, dataEdificio.edificio);
-                    }
-
-                    var espaciosAcad = (dataEspacios.success && Array.isArray(dataEspacios.espacios))
-                        ? dataEspacios.espacios.filter(function (esp) {
-                            var tipo = Number(esp.id_tipo);
-                            return tipo === 1 || tipo === 2 || tipo === 3;
-                        })
-                        : [];
-                    cacheEspaciosEdificios.set(codigoAPI, espaciosAcad);
-
-                    if (miToken !== tokenSeleccionActual) return;
-
-                    if (dataEdificio.success && dataEdificio.edificio) {
-                        aplicarDatosEdificioEnDOM(dataEdificio.edificio, edificio, miToken);
-                    } else {
-                        establecerEstadoSkeletonTarjeta(false);
-                    }
-
-                    renderizarSalonesDesdeEspacios(espaciosAcad);
-                    if (typeof window.mostrarEspaciosEnMapa === 'function') {
-                        window.mostrarEspaciosEnMapa(edificio, espaciosAcad);
-                    }
-                })
-                .catch(function (error) {
-                    if (error && error.name === 'AbortError') return;
-                    console.error('No se pudo cargar detalle de edificio desde API:', error);
-                    if (miToken === tokenSeleccionActual) {
-                        establecerEstadoSkeletonTarjeta(false);
-                    }
-                });
-        }
+        cargandoDetalleActual = false;
+        cargandoSalonesActual = false;
+        cargandoCubiculosActual = false;
+        actualizarEstadoCargaVisualPanel();
     }
 
     document.getElementById('btn_direcciones').onclick = function () {
@@ -995,14 +1069,21 @@ function cargarCubiculos(codigoEdificio, tokenEsperado) {
             mostrarCubiculos(cubCached);
         } else {
             cubiculosList.innerHTML = '<li class="cubiculo-mensaje-vacio">No hay cubículos registrados en este edificio.</li>';
-            requestAnimationFrame(actualizarScrollbarPanel);
+        }
+        if (token === tokenSeleccionActual) {
+            cargandoCubiculosActual = false;
+            actualizarEstadoCargaVisualPanel();
         }
         return;
     }
 
     loadingDiv.style.display = 'none';
-    cubiculosList.innerHTML = '<div class="spinner-lista-centro"></div>';
-    requestAnimationFrame(actualizarScrollbarPanel);
+    cubiculosList.innerHTML = '';
+
+    if (token === tokenSeleccionActual) {
+        cargandoCubiculosActual = true;
+        actualizarEstadoCargaVisualPanel();
+    }
 
     var basePath = window.location.pathname.replace(/\/[^\/]*$/, '');
     var apiUrl = window.location.origin + basePath + '/api/espacios.php?tipo=4&edificio=' + encodeURIComponent(codigoEdificio);
@@ -1019,15 +1100,17 @@ function cargarCubiculos(codigoEdificio, tokenEsperado) {
                 mostrarCubiculos(lista);
             } else {
                 cubiculosList.innerHTML = '<li class="cubiculo-mensaje-vacio">No hay cubículos registrados en este edificio.</li>';
-                requestAnimationFrame(actualizarScrollbarPanel);
             }
+            cargandoCubiculosActual = false;
+            actualizarEstadoCargaVisualPanel();
         })
         .catch(function (error) {
             if (error && error.name === 'AbortError') return;
             console.error('Error al cargar cubículos:', error);
             if (token === tokenSeleccionActual) {
                 cubiculosList.innerHTML = '<li class="cubiculo-mensaje-vacio" style="color: #dc2626;">Error al cargar cubículos. Intenta de nuevo.</li>';
-                requestAnimationFrame(actualizarScrollbarPanel);
+                cargandoCubiculosActual = false;
+                actualizarEstadoCargaVisualPanel();
             }
         });
 }
