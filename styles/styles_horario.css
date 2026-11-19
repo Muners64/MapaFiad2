@@ -1,8 +1,9 @@
 .horario-modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.55);
-    backdrop-filter: blur(3px);
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     z-index: 9999;
     display: flex;
     align-items: center;
@@ -11,7 +12,7 @@
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s ease;
-    font-family: 'Open Sans', sans-serif;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 .horario-modal-overlay.abierto {
@@ -24,12 +25,13 @@
     width: 100%;
     max-width: 960px;
     max-height: 88vh;
-    border-radius: 14px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+    border: 1px solid #e0e0e0;
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transform: translateY(12px);
+    transform: translateY(10px);
     transition: transform 0.22s ease;
 }
 
@@ -37,29 +39,32 @@
     transform: translateY(0);
 }
 
+/* Cabecera blanca limpia consistente con .config-popover-header */
 .horario-modal-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
-    padding: 16px 20px;
-    background: #1b4332;
-    color: #ffffff;
+    padding: 14px 18px;
+    background: #ffffff;
+    color: #1a1a1a;
+    border-bottom: 1px solid #eeeeee;
     gap: 12px;
 }
 
 .horario-modal-titulo-wrap h3 {
     margin: 0;
-    font-size: 1.15rem;
+    font-size: 1.1rem;
     font-weight: 700;
+    color: #1a1a1a;
 }
 
 .horario-modal-subtitulo {
     font-size: 0.82rem;
-    opacity: 0.88;
+    color: #666666;
     margin-top: 4px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
 }
 
@@ -71,10 +76,10 @@
     margin-top: 6px;
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 8px;
     flex-wrap: wrap;
-    font-size: 0.82rem;
-    color: rgba(255, 255, 255, 0.92);
+    font-size: 0.8rem;
+    color: #4b5563;
 }
 
 .horario-modal-contacto:empty {
@@ -85,24 +90,26 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: inherit;
+    color: #1a1a1a;
     text-decoration: none;
-    background: rgba(255, 255, 255, 0.12);
+    background: #f4f6f8;
+    border: 1px solid #e0e0e0;
     padding: 3px 10px;
     border-radius: 999px;
-    transition: background-color 0.15s ease;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
 a.horario-contacto-item:hover {
-    background: rgba(255, 255, 255, 0.22);
-    text-decoration: underline;
+    background: #e8f5e9;
+    border-color: #bbf7d0;
+    color: #1e7e24;
 }
 
 .horario-contacto-icono {
     width: 13px;
     height: 13px;
     flex-shrink: 0;
-    background-color: #a7f3d0;
+    background-color: #2da832;
 }
 
 .horario-contacto-icono.icono-email {
@@ -118,40 +125,43 @@ a.horario-contacto-item:hover {
 .horario-badge-estado {
     padding: 2px 9px;
     border-radius: 999px;
-    font-size: 0.75rem;
+    font-size: 0.74rem;
     font-weight: 700;
     text-transform: uppercase;
 }
 
 .horario-badge-estado.libre {
-    background: #d1fae5;
-    color: #065f46;
+    background: #e8f5e9;
+    color: #1e7e24;
 }
 
 .horario-badge-estado.ocupado {
-    background: #fee2e2;
-    color: #991b1b;
+    background: #fef2f2;
+    color: #dc2626;
 }
 
+/* Botón X limpio sin círculo, igual que .config-close-btn */
 .horario-modal-cerrar {
-    background: rgba(255, 255, 255, 0.15);
+    background: transparent;
     border: none;
-    color: #ffffff;
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    font-size: 1.35rem;
+    color: #666666;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    font-size: 24px;
+    font-weight: 700;
     line-height: 1;
     cursor: pointer;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.15s;
+    transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .horario-modal-cerrar:hover {
-    background: rgba(255, 255, 255, 0.3);
+    background: #f4f6f8;
+    color: #1a1a1a;
 }
 
 .horario-modal-body {
@@ -164,12 +174,12 @@ a.horario-contacto-item:hover {
 .horario-error {
     text-align: center;
     padding: 40px 20px;
-    color: #475569;
-    font-size: 0.95rem;
+    color: #666666;
+    font-size: 0.92rem;
 }
 
 .horario-error {
-    color: #b91c1c;
+    color: #dc2626;
 }
 
 /* Cuadrícula semanal (Escritorio) */
@@ -187,11 +197,11 @@ a.horario-contacto-item:hover {
 }
 
 .horario-grid th {
-    background: #f1f5f9;
-    color: #1e293b;
+    background: #f4f6f8;
+    color: #1a1a1a;
     font-weight: 700;
     padding: 10px 6px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid #e0e0e0;
     text-align: center;
 }
 
@@ -200,7 +210,7 @@ a.horario-contacto-item:hover {
 }
 
 .horario-grid td {
-    border: 1px solid #e2e8f0;
+    border: 1px solid #eeeeee;
     padding: 4px;
     vertical-align: top;
     height: 46px;
@@ -210,22 +220,22 @@ a.horario-contacto-item:hover {
     background: #f8fafc;
     text-align: center;
     font-weight: 700;
-    color: #475569;
+    color: #666666;
     vertical-align: middle;
     font-size: 0.74rem;
 }
 
 .horario-bloque {
-    border-radius: 6px;
+    border-radius: 8px;
     padding: 6px 7px;
     height: 100%;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    color: #0f172a;
-    border-left: 4px solid rgba(0, 0, 0, 0.35);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+    color: #1a1a1a;
+    border-left: 4px solid rgba(0, 0, 0, 0.3);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .horario-bloque-materia {
@@ -296,22 +306,23 @@ a.horario-contacto-item:hover {
         display: grid;
         grid-template-columns: repeat(6, 1fr);
         gap: 5px;
-        background: #f1f5f9;
-        padding: 5px;
-        border-radius: 10px;
+        background: #f4f6f8;
+        border: 1px solid #e0e0e0;
+        padding: 4px;
+        border-radius: 12px;
         position: sticky;
         top: 0;
         z-index: 2;
     }
 
     .horario-dia-tab {
-        border: none;
+        border: 1px solid transparent;
         background: transparent;
-        padding: 8px 2px;
-        border-radius: 7px;
+        padding: 7px 2px;
+        border-radius: 8px;
         font-size: 0.78rem;
         font-weight: 700;
-        color: #475569;
+        color: #666666;
         cursor: pointer;
         display: flex;
         flex-direction: column;
@@ -324,18 +335,18 @@ a.horario-contacto-item:hover {
         width: 5px;
         height: 5px;
         border-radius: 50%;
-        background: #1b4332;
-        opacity: 0.5;
+        background: #2da832;
+        opacity: 0.55;
     }
 
     .horario-dia-tab.activo {
-        background: #1b4332;
-        color: #ffffff;
-        box-shadow: 0 2px 6px rgba(27, 67, 50, 0.25);
+        background: #e8f5e9;
+        border-color: #bbf7d0;
+        color: #1e7e24;
     }
 
     .horario-dia-tab.activo .dot-clase {
-        background: #a7f3d0;
+        background: #2da832;
         opacity: 1;
     }
 
@@ -350,11 +361,11 @@ a.horario-contacto-item:hover {
     }
 
     .horario-card-movil {
-        border-radius: 10px;
+        border-radius: 12px;
         padding: 12px 14px;
-        border-left: 5px solid rgba(15, 23, 42, 0.35);
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06);
-        color: #0f172a;
+        border-left: 4px solid rgba(26, 26, 26, 0.35);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+        color: #1a1a1a;
         display: flex;
         flex-direction: column;
         gap: 4px;
@@ -366,11 +377,11 @@ a.horario-contacto-item:hover {
         align-items: center;
         font-size: 0.78rem;
         font-weight: 700;
-        color: #1e293b;
+        color: #1a1a1a;
     }
 
     .horario-card-movil-grupo {
-        background: rgba(255, 255, 255, 0.65);
+        background: rgba(255, 255, 255, 0.75);
         padding: 2px 8px;
         border-radius: 6px;
         font-size: 0.74rem;
@@ -390,10 +401,10 @@ a.horario-contacto-item:hover {
     .horario-dia-vacio {
         text-align: center;
         padding: 36px 16px;
-        background: #f8fafc;
-        border: 1px dashed #cbd5e1;
+        background: #f4f6f8;
+        border: 1px solid #e0e0e0;
         border-radius: 12px;
-        color: #64748b;
+        color: #666666;
         font-size: 0.88rem;
     }
 }
@@ -412,7 +423,6 @@ a.horario-contacto-item:hover {
     border-color: var(--accent-green, #2da832) !important;
 }
 
-/* Icono SVG minimalista de calendario (monocromático) */
 [data-id-horario]::before,
 [data-num-empleado]::before {
     content: "";
@@ -429,7 +439,6 @@ a.horario-contacto-item:hover {
     pointer-events: none;
 }
 
-/* Flecha minimalista (>) */
 [data-id-horario]::after,
 [data-num-empleado]::after {
     content: "";

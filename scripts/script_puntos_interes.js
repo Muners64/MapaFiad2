@@ -64,17 +64,17 @@
     var descRaw = (poi.descripcion || '').trim();
     var tieneNombrePropio = nombreRaw !== '' && nombreRaw.toLowerCase() !== meta.label.toLowerCase();
 
-    var html = '<div style="min-width:175px;font-family:sans-serif;font-size:12px;">';
+    var html = '<div style="min-width:175px;font-family:\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;font-size:12.5px;">';
 
     if (tieneNombrePropio) {
       html +=
-        '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:4px;background:' + meta.color + ';color:#fff;font-size:11px;font-weight:600;">' +
+        '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:' + meta.color + ';color:#fff;font-size:11px;font-weight:700;">' +
           renderizarIconoHTML(meta, 13) + ' ' + escaparHTML(meta.label) +
         '</span>' +
-        '<div style="font-weight:bold;font-size:13.5px;margin-top:5px;color:#0f172a;">' + escaparHTML(nombreRaw) + '</div>';
+        '<div style="font-weight:700;font-size:13.5px;margin-top:5px;color:#1a1a1a;">' + escaparHTML(nombreRaw) + '</div>';
     } else {
       html +=
-        '<div style="display:flex;align-items:center;gap:6px;font-weight:bold;font-size:13.5px;color:#0f172a;">' +
+        '<div style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:13.5px;color:#1a1a1a;">' +
           '<span style="width:22px;height:22px;border-radius:50%;background:' + meta.color + ';color:#fff;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">' +
             renderizarIconoHTML(meta, 13) +
           '</span>' +
@@ -83,13 +83,13 @@
     }
 
     if (descRaw !== '') {
-      html += '<p style="margin:6px 0 0 0;color:#334155;line-height:1.35;">' + escaparHTML(descRaw) + '</p>';
+      html += '<p style="margin:6px 0 0 0;color:#666666;line-height:1.35;">' + escaparHTML(descRaw) + '</p>';
     }
 
     html +=
       '<button onclick="window.irAPuntoInteres(' + poi.lat + ',' + poi.lng + ')" ' +
-        'style="margin-top:8px;width:100%;padding:6px 10px;border-radius:6px;background:#16a34a;color:#fff;font-weight:bold;border:none;cursor:pointer;">' +
-        '🧭 Cómo llegar' +
+        'style="margin-top:8px;width:100%;padding:7px 10px;border-radius:10px;background:#2da832;color:#fff;font-weight:700;border:none;cursor:pointer;font-family:inherit;">' +
+        'Cómo llegar' +
       '</button>' +
     '</div>';
 
@@ -106,17 +106,17 @@
   function abrirFormularioNuevoPOI(latlng) {
     var html =
       '<div class="fiad-editor-popup">' +
-        '<strong>📍 Nuevo Punto de Interés</strong>' +
-        '<label>Categoría:' +
+        '<strong>Nuevo Punto de Interés</strong>' +
+        '<label>Categoría' +
           '<select id="fiad-nuevo-poi-cat">' + construirOpcionesCategoriaHTML('banos') + '</select>' +
         '</label>' +
-        '<label>Nombre propio (opcional):' +
+        '<label>Nombre propio (opcional)' +
           '<input id="fiad-nuevo-poi-nombre" type="text" placeholder="Ej. Baños Edificio 40">' +
         '</label>' +
-        '<label>Información (opcional):' +
+        '<label>Información (opcional)' +
           '<textarea id="fiad-nuevo-poi-desc" rows="2" placeholder="Ej. Planta baja, ala norte"></textarea>' +
         '</label>' +
-        '<button class="fiad-editor-popup-btn" style="background:#2563eb;" onclick="window.PuntosInteresCampus._crearDesdePopup(' + latlng.lat + ',' + latlng.lng + ')">✔ Agregar Punto de Interés</button>' +
+        '<button type="button" class="fiad-editor-popup-btn is-primary" onclick="window.PuntosInteresCampus._crearDesdePopup(' + latlng.lat + ',' + latlng.lng + ')">Agregar punto</button>' +
       '</div>';
 
     L.popup().setLatLng(latlng).setContent(html).openOn(map);
@@ -130,14 +130,14 @@
 
     var html =
       '<div class="fiad-editor-popup">' +
-        '<strong>✏️ Editar Punto de Interés</strong>' +
-        '<label>Categoría:' +
+        '<strong>Editar Punto de Interés</strong>' +
+        '<label>Categoría' +
           '<select id="fiad-edit-poi-cat">' + construirOpcionesCategoriaHTML(poi.categoria) + '</select>' +
         '</label>' +
-        '<label>Nombre propio (opcional):' +
+        '<label>Nombre propio (opcional)' +
           '<input id="fiad-edit-poi-nombre" type="text" value="' + escaparHTML(nombreVal) + '" placeholder="Vacío = solo nombre de categoría">' +
         '</label>' +
-        '<label>Información (opcional):' +
+        '<label>Información (opcional)' +
           '<textarea id="fiad-edit-poi-desc" rows="2" placeholder="Ej. Planta baja, ala norte">' + escaparHTML(poi.descripcion || '') + '</textarea>' +
         '</label>' +
         '<div class="fiad-editor-grid-2">' +
@@ -148,8 +148,8 @@
             '<input id="fiad-edit-poi-lng" type="number" step="0.00000001" value="' + poi.lng + '">' +
           '</label>' +
         '</div>' +
-        '<button class="fiad-editor-popup-btn" style="background:#2563eb;" onclick="window.PuntosInteresCampus._actualizarDesdePopup(\'' + escaparHTML(poi.id) + '\')">✔ Aplicar cambios</button>' +
-        '<button class="fiad-editor-popup-btn" style="background:#dc2626;" onclick="window.PuntosInteresCampus._eliminarDesdePopup(\'' + escaparHTML(poi.id) + '\')">🗑️ Eliminar punto de interés</button>' +
+        '<button type="button" class="fiad-editor-popup-btn is-primary" onclick="window.PuntosInteresCampus._actualizarDesdePopup(\'' + escaparHTML(poi.id) + '\')">Aplicar cambios</button>' +
+        '<button type="button" class="fiad-editor-popup-btn is-danger" onclick="window.PuntosInteresCampus._eliminarDesdePopup(\'' + escaparHTML(poi.id) + '\')">Eliminar punto</button>' +
       '</div>';
 
     L.popup().setLatLng([poi.lat, poi.lng]).setContent(html).openOn(map);
@@ -191,7 +191,7 @@
           hayCambiosPendientes = true;
           if (ctxEditor) {
             var etiqueta = (poi.nombre && poi.nombre.trim()) ? poi.nombre.trim() : meta.label;
-            ctxEditor.setEstado('📍 <strong>' + escaparHTML(etiqueta) + '</strong> movido a (' + poi.lat + ', ' + poi.lng + ') — presiona <strong>Guardar en BD</strong>.');
+            ctxEditor.setEstado('<strong>' + escaparHTML(etiqueta) + '</strong> movido a (' + poi.lat + ', ' + poi.lng + ') — presiona <strong>Guardar en BD</strong>.');
           }
         });
       }
@@ -287,7 +287,7 @@
       hayCambiosPendientes = true;
       map.closePopup();
       renderizar();
-      if (ctxEditor) ctxEditor.setEstado('📌 Punto de interés agregado — presiona <strong>Guardar en BD</strong>.');
+      if (ctxEditor) ctxEditor.setEstado('Punto de interés agregado — presiona <strong>Guardar en BD</strong>.');
     },
 
     _actualizarDesdePopup: function (id) {
@@ -316,7 +316,7 @@
       hayCambiosPendientes = true;
       map.closePopup();
       renderizar();
-      if (ctxEditor) ctxEditor.setEstado('✏️ Punto de interés actualizado — presiona <strong>Guardar en BD</strong>.');
+      if (ctxEditor) ctxEditor.setEstado('Punto de interés actualizado — presiona <strong>Guardar en BD</strong>.');
     },
 
     _eliminarDesdePopup: function (id) {
@@ -334,9 +334,9 @@
     herramientas: [
       {
         id: 'poi',
-        label: '📌 Punto de Interés',
-        color: '#7c3aed',
-        ayuda: '📌 <strong>Punto de Interés:</strong> Haz 1 clic en el mapa para colocar Baños, Biblioteca, Canchas, Estacionamiento, Cafetería o Tienda.'
+        label: 'Punto de interés',
+        color: '#2da832',
+        ayuda: '<strong>Punto de interés:</strong> Haz 1 clic en el mapa para colocar Baños, Biblioteca, Canchas, Estacionamiento, Cafetería o Tienda.'
       }
     ],
     alActivarEditor: async function (ctx) {

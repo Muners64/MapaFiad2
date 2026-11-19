@@ -1,20 +1,24 @@
+/* Barra flotante del editor alineada con la estética de .lateral-btn y .config-popover */
 .fiad-editor-panel {
     position: fixed;
     bottom: 16px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 9999;
-    background: #0f172a;
-    color: #ffffff;
-    padding: 10px 14px;
-    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: #1a1a1a;
+    border: 1px solid #e0e0e0;
+    padding: 10px 12px;
+    border-radius: 14px;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
-    font-family: sans-serif;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     font-size: 12px;
-    max-width: 96vw;
+    max-width: calc(100vw - 24px);
 }
 
 .fiad-editor-tools {
@@ -31,8 +35,10 @@
     gap: 8px;
     align-items: center;
     justify-content: space-between;
-    border-top: 1px solid #334155;
-    padding-top: 7px;
+    border-top: 1px solid #eeeeee;
+    padding-top: 8px;
+    color: #666666;
+    font-size: 12px;
 }
 
 .fiad-editor-actions {
@@ -41,36 +47,87 @@
     align-items: center;
 }
 
+/* Botones de herramienta unificados con .lateral-btn y pestañas del panel */
 .fiad-editor-btn {
     padding: 6px 10px;
-    border-radius: 6px;
-    border: none;
-    color: #ffffff;
+    border-radius: 10px;
+    border: 1px solid #e0e0e0;
+    background: #f4f6f8;
+    color: #1a1a1a;
+    font-family: inherit;
+    font-weight: 600;
     cursor: pointer;
     font-size: 12px;
-    transition: transform 0.1s ease, outline 0.1s ease;
+    line-height: 1.2;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+    -webkit-tap-highlight-color: transparent;
 }
 
-.fiad-editor-btn.is-active {
-    outline: 2px solid #ffffff;
-    transform: scale(1.04);
+.fiad-editor-tools .fiad-editor-btn {
+    background: #f4f6f8 !important;
+    color: #1a1a1a !important;
+    border: 1px solid #e0e0e0 !important;
 }
 
+.fiad-editor-btn:hover,
+.fiad-editor-tools .fiad-editor-btn:hover {
+    background: #e8ecf0 !important;
+    border-color: #cbd5e1 !important;
+}
+
+.fiad-editor-btn:active {
+    transform: scale(0.96);
+}
+
+.fiad-editor-btn.is-active,
+.fiad-editor-tools .fiad-editor-btn.is-active {
+    background: #e8f5e9 !important;
+    border-color: #2da832 !important;
+    color: #1e7e24 !important;
+    font-weight: 700;
+    outline: none;
+    transform: none;
+    box-shadow: 0 2px 6px rgba(45, 168, 50, 0.18);
+}
+
+/* Botones de acción del pie del editor (Guardar en verde UABC, secundarios neutros) */
+.fiad-editor-actions .fiad-editor-btn:first-child {
+    background: #2da832 !important;
+    border-color: #2da832 !important;
+    color: #ffffff !important;
+    font-weight: 700;
+}
+
+.fiad-editor-actions .fiad-editor-btn:first-child:hover {
+    background: #248f28 !important;
+}
+
+/* Popups de edición en mapa consistentes con .config-popover */
 .fiad-editor-popup {
-    min-width: 230px;
-    font-family: sans-serif;
-    font-size: 12px;
+    min-width: 235px;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-size: 12.5px;
+    color: #1a1a1a;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
+}
+
+.fiad-editor-popup strong {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #1a1a1a;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #eeeeee;
 }
 
 .fiad-editor-popup label {
-    font-size: 11px;
-    color: #475569;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #666666;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
 }
 
 .fiad-editor-popup input,
@@ -78,26 +135,66 @@
 .fiad-editor-popup textarea {
     width: 100%;
     box-sizing: border-box;
-    padding: 4px 6px;
-    border-radius: 4px;
-    border: 1px solid #cbd5e1;
-    font-size: 12px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    background: #f4f6f8;
+    color: #1a1a1a;
+    font-family: inherit;
+    font-size: 12.5px;
+    outline: none;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.fiad-editor-popup input:focus,
+.fiad-editor-popup select:focus,
+.fiad-editor-popup textarea:focus {
+    background: #ffffff;
+    border-color: #2da832;
 }
 
 .fiad-editor-grid-2 {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 5px;
+    gap: 6px;
 }
 
 .fiad-editor-popup-btn {
-    padding: 6px 8px;
-    border-radius: 5px;
+    padding: 7px 10px;
+    border-radius: 10px;
     border: none;
+    background: #2da832;
     color: #ffffff;
-    font-weight: bold;
+    font-family: inherit;
+    font-weight: 700;
     cursor: pointer;
     font-size: 12px;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.fiad-editor-popup-btn:hover {
+    background: #248f28;
+}
+
+.fiad-editor-popup-btn.is-primary {
+    background: #2da832;
+    color: #ffffff;
+}
+
+.fiad-editor-popup-btn.is-primary:hover {
+    background: #248f28;
+}
+
+.fiad-editor-popup-btn.is-danger {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+.fiad-editor-popup-btn.is-danger:hover {
+    background: #dc2626;
+    color: #ffffff;
+    border-color: #dc2626;
 }
 
 .fiad-edificio-dest-badge {
@@ -106,12 +203,39 @@
     padding: 0 6px;
     border-radius: 11px;
     color: #ffffff;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.65);
+    border: 1.5px solid #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
     display: flex;
     align-items: center;
     justify-content: center;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     font-size: 10px;
     font-weight: 700;
     cursor: grab;
     white-space: nowrap;
+}
+
+@media screen and (max-width: 768px) {
+    .fiad-editor-panel {
+        bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+        padding: 8px 10px;
+        gap: 6px;
+    }
+
+    .fiad-editor-tools {
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+        overflow-x: auto;
+        padding-bottom: 2px;
+        scrollbar-width: none;
+    }
+
+    .fiad-editor-tools::-webkit-scrollbar {
+        display: none;
+    }
+
+    .fiad-editor-btn {
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
 }

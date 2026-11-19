@@ -1,12 +1,12 @@
 /* Variables de color para mantener consistencia */
 :root {
     --bg-white: #ffffff;
-    --bg-light-gray: #f0f2f5;
+    --bg-light-gray: #f4f6f8;
     --text-dark: #1a1a1a;
     --text-gray: #666666;
     --accent-green: #2da832;
     --shadow-soft: 0 2px 10px rgba(0,0,0,0.05);
-    --shadow-card: 0 8px 24px rgba(0,0,0,0.12);
+    --shadow-card: 0 8px 24px rgba(0,0,0,0.16);
 }
 
 * {
@@ -17,20 +17,24 @@
 
 .panel_informacion {
     position: fixed;
-    top: 84px;
+    top: 78px;
     left: 20px;
     right: auto;
     bottom: auto;
-    width: 420px;
-    height: calc(100vh - 104px);
-    background-color: var(--bg-white);
+    width: 410px;
+    height: calc(100vh - 98px);
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid #e0e0e0;
     border-radius: 16px;
     box-shadow: var(--shadow-card);
     display: none;
     z-index: 350;
     overflow: hidden;
     color: var(--text-dark);
-    animation: slideInLeft 0.3s ease-out;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    animation: slideInLeft 0.28s ease-out;
     transform: none;
 }
 
@@ -42,19 +46,39 @@
     overflow: hidden;
 }
 
-/* Cabecera superior fija (compacta en escritorio, deslizable en móvil) */
+/* Cabecera superior fija con título persistente del edificio y botón cerrar */
 .panel-sheet-header {
     display: flex;
-    align-items: center;
-    justify-content: flex-end;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
     position: relative;
-    height: 44px;
-    padding: 10px 16px 0;
+    padding: 14px 20px 8px;
     flex-shrink: 0;
 }
 
 .panel-handle {
     display: none;
+}
+
+.panel-titulo-bar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+}
+
+.panel-titulo-bar h2 {
+    margin: 0;
+    font-size: 1.32rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--text-dark);
+    text-align: left;
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
 }
 
 @keyframes slideInLeft {
@@ -68,15 +92,26 @@
     }
 }
 
-/* Botón de cerrar (X) */
+@keyframes slideUpSheet {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 0.99;
+    }
+}
+
+/* Botón de cerrar (X) alineado con el nombre en escritorio */
 .cerrar-panel {
     position: relative;
-    background: var(--bg-light-gray);
+    background: transparent;
     border: none;
-    border-radius: 50%;
+    border-radius: 8px;
     cursor: pointer;
     color: var(--text-dark);
-    font-size: 20px;
+    font-size: 24px;
     line-height: 1;
     font-weight: 700;
     padding: 0;
@@ -93,8 +128,8 @@
 }
 
 .cerrar-panel:hover {
-    background: #e2e5e9;
-    color: var(--text-dark);
+    background: var(--bg-light-gray);
+    color: var(--text-gray);
 }
 
 .cerrar-panel:active {
@@ -104,9 +139,9 @@
 /* Navegación de pestañas fija en 1 sola fila */
 .btn_encabezado {
     background: transparent;
-    padding: 8px 20px 12px;
+    padding: 6px 20px 12px;
     flex-shrink: 0;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    border-bottom: 1px solid #eeeeee;
 }
 
 .btn_encabezado ul {
@@ -125,10 +160,10 @@
     align-items: center;
     justify-content: center;
     background-color: var(--bg-light-gray);
-    border: none;
+    border: 1px solid #e0e0e0;
     border-radius: 10px;
-    padding: 9px 6px;
-    min-height: 38px;
+    padding: 8px 6px;
+    min-height: 36px;
     cursor: pointer;
     color: var(--text-gray);
     font-size: 0.82rem;
@@ -139,17 +174,27 @@
 }
 
 .btn_encabezado li:hover {
-    background-color: #e4e6e9;
+    background-color: #e8ecf0;
     color: var(--text-dark);
 }
 
 .btn_encabezado li.active {
     background-color: #e8f5e9;
+    border-color: #bbf7d0;
     color: var(--accent-green);
     font-weight: 700;
 }
 
-/* Único contenedor desplazable del panel */
+/* Contenedor envolvente para scroll nativo + indicador gris permanente */
+.panel-scroll-wrapper {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
 #contenedor_panel_info {
     background-color: transparent;
     padding: 16px 20px 24px;
@@ -158,58 +203,71 @@
     overflow-y: auto;
     overflow-x: hidden;
     box-sizing: border-box;
-    scrollbar-width: thin;
-    scrollbar-color: var(--accent-green) var(--bg-light-gray);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
 #contenedor_panel_info::-webkit-scrollbar {
-    width: 7px;
+    display: none;
+    width: 0;
+    height: 0;
 }
 
-#contenedor_panel_info::-webkit-scrollbar-track {
-    background: var(--bg-light-gray);
-    border-radius: 4px;
+/* Barra de scroll gris permanente que no desaparece con la inactividad */
+.panel-custom-scrollbar {
+    position: absolute;
+    top: 8px;
+    right: 5px;
+    bottom: 8px;
+    width: 4.5px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.16);
+    opacity: 0;
+    pointer-events: auto;
+    cursor: pointer;
+    z-index: 20;
+    transition: opacity 0.18s ease, width 0.15s ease;
 }
 
-#contenedor_panel_info::-webkit-scrollbar-thumb {
-    background: var(--accent-green);
-    border-radius: 4px;
+.panel-custom-scrollbar.is-visible {
+    opacity: 1;
 }
 
-#contenedor_panel_info::-webkit-scrollbar-thumb:hover {
-    background: #248f28;
+.panel-custom-scrollbar:hover,
+.panel-custom-scrollbar.is-dragging {
+    width: 6.5px;
 }
 
-/* Contenido del edificio: Título -> Cómo llegar -> Imagen -> Descripción */
+.panel-custom-scroll-thumb {
+    width: 100%;
+    min-height: 28px;
+    border-radius: 999px;
+    background: #9ca3af;
+    will-change: transform, height;
+    transition: background-color 0.15s ease;
+}
+
+.panel-custom-scrollbar:hover .panel-custom-scroll-thumb,
+.panel-custom-scrollbar.is-dragging .panel-custom-scroll-thumb {
+    background: #6b7280;
+}
+
+/* Contenido del edificio: Cómo llegar -> Imagen -> Descripción */
 .contenedor_edificio_info {
     display: flex;
     flex-direction: column;
     gap: 14px;
 }
 
-.edificio-header-accion {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.contenedor_edificio_info h2 {
-    margin: 0;
-    font-size: 1.42rem;
-    font-weight: 700;
-    line-height: 1.25;
-    color: var(--text-dark);
-}
-
 /* Botón Verde "Cómo llegar" */
 #btn_direcciones {
     width: 100%;
-    padding: 12px 18px;
+    padding: 11px 18px;
     background-color: var(--accent-green);
     color: #ffffff;
     border: none;
     border-radius: 12px;
-    font-size: 0.96rem;
+    font-size: 0.95rem;
     font-weight: 700;
     cursor: pointer;
     transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
@@ -219,6 +277,7 @@
     gap: 8px;
     margin: 0;
     box-shadow: 0 3px 10px rgba(45, 168, 50, 0.25);
+    font-family: inherit;
 }
 
 #btn_direcciones:hover {
@@ -240,6 +299,7 @@
     width: 100%;
     height: 175px;
     border-radius: 12px;
+    border: 1px solid #e0e0e0;
     object-fit: cover;
     margin: 0;
     display: block;
@@ -250,21 +310,20 @@
     margin: 0;
     line-height: 1.55;
     color: var(--text-gray);
-    font-size: 0.93rem;
+    font-size: 0.92rem;
 }
 
 #interiorImagen {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: 8px;
+    border-radius: 10px;
 }
 
 #salonesContent {
     padding: 0;
 }
 
-/* UL dentro de salonesContent */
 #salonesContent ul {
     list-style-type: none;
     margin: 0;
@@ -272,15 +331,15 @@
 }
 
 .salon-piso {
-    margin-bottom: 22px;
+    margin-bottom: 20px;
 }
 
 .salon-piso-titulo {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 700;
     color: var(--accent-green);
     margin-bottom: 10px;
-    padding: 9px 14px;
+    padding: 8px 12px;
     background: #e8f5e9;
     border-left: 4px solid var(--accent-green);
     border-radius: 8px;
@@ -291,33 +350,33 @@
     flex-direction: column;
     gap: 6px;
     margin-bottom: 10px;
-    padding: 15px 16px;
+    padding: 13px 15px;
     cursor: pointer;
     border-radius: 12px;
-    transition: all 0.25s ease;
+    transition: all 0.2s ease;
     background: var(--bg-light-gray);
     border: 1px solid #e0e0e0;
     color: var(--text-dark);
 }
 
 .salon-item:hover {
-    background: #e4e6e9;
-    transform: translateX(6px);
+    background: #e8ecf0;
+    transform: translateX(4px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     border-color: var(--accent-green);
 }
 
 .salon-codigo {
     font-weight: 700;
-    font-size: 15px;
+    font-size: 14.5px;
     color: var(--text-dark);
 }
 
 .salon-mensaje-vacio {
     text-align: center;
-    padding: 40px 20px;
+    padding: 36px 20px;
     color: var(--text-gray);
-    font-size: 15px;
+    font-size: 14.5px;
     background: var(--bg-light-gray);
     border-radius: 12px;
     border: 1px solid #e0e0e0;
@@ -350,20 +409,20 @@
 .contenedor_vacio {
     padding: 20px;
     text-align: center;
-    font-size: 16px;
-    color: var(--text-grey);
+    font-size: 15px;
+    color: var(--text-gray);
 }
 
 .tabcontent {
     display: none;
     background-color: transparent;
-    animation: fadeIn 0.25s ease-in;
+    animation: fadeIn 0.22s ease-in;
 }
 
 @keyframes fadeIn {
     from {
         opacity: 0;
-        transform: translateY(8px);
+        transform: translateY(6px);
     }
     to {
         opacity: 1;
@@ -375,19 +434,19 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 12px;
-    padding: 15px;
+    margin-bottom: 10px;
+    padding: 13px 15px;
     cursor: pointer;
-    border-radius: 10px;
-    transition: all 0.25s ease;
+    border-radius: 12px;
+    transition: all 0.2s ease;
     background: var(--bg-light-gray);
     border: 1px solid #e0e0e0;
     color: var(--text-dark);
 }
 
 .tabcontent li:hover {
-    background: #e4e6e9;
-    transform: translateX(5px);
+    background: #e8ecf0;
+    transform: translateX(4px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     border-color: var(--accent-green);
 }
@@ -418,24 +477,23 @@
 .floor-button {
     background: var(--accent-green);
     border: none;
-    color: white;
-    padding: 12px 24px;
+    color: #ffffff;
+    padding: 10px 20px;
     text-align: center;
     text-decoration: none;
     display: inline-block;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    border-radius: 30px;
+    border-radius: 12px;
     transition: all 0.2s ease;
     box-shadow: 0 2px 8px rgba(45, 168, 50, 0.2);
 }
 
 .floor-button:hover {
-    background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
-    border-color: rgba(233, 69, 96, 0.6);
+    background: #248f28;
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(233, 69, 96, 0.3);
+    box-shadow: 0 4px 12px rgba(45, 168, 50, 0.3);
 }
 
 .floor-button.active {
@@ -455,19 +513,31 @@
 
 @media screen and (max-width: 768px) {
     .panel_informacion {
-        left: 50%;
-        right: auto;
+        left: 0;
+        right: 0;
         bottom: 0;
         top: auto;
-        width: min(100vw - 12px, 560px);
+        width: 100%;
+        max-width: 100%;
         height: var(--panel-height, 45vh);
         height: var(--panel-height, 45dvh);
-        border-radius: 22px 22px 16px 16px;
-        transform: translateX(-50%);
-        transition: height 280ms ease-out, opacity 280ms ease-out, transform 280ms ease-out;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+        border-top: 1px solid #e0e0e0;
+        border-radius: 20px 20px 0 0;
+        box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.14);
+        transform: none;
+        animation: slideUpSheet 0.26s ease-out;
+        transition: height 280ms ease-out, opacity 280ms ease-out;
         opacity: 0.99;
         overscroll-behavior: contain;
         padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    .panel_informacion.panel-minimized {
+        --panel-height: 66px;
+        height: calc(var(--panel-height, 66px) + env(safe-area-inset-bottom, 0px));
     }
 
     .panel_informacion.panel-partial {
@@ -482,27 +552,28 @@
 
     .panel-sheet-header {
         display: flex;
-        align-items: center;
-        justify-content: center;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
         position: relative;
-        height: 42px;
-        padding: 6px 14px 0;
+        height: auto;
+        padding: 8px 18px 8px;
+        gap: 6px;
         touch-action: none;
         user-select: none;
         -webkit-user-select: none;
         -webkit-tap-highlight-color: transparent;
         z-index: 20;
+        cursor: grab;
     }
 
-    /* Indicador de arrastre claro: flecha + píldora contrastada */
+    /* Píldora limpia sin flecha */
     .panel-handle {
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 3px;
-        width: 64px;
-        height: 30px;
+        width: 56px;
+        height: 14px;
         margin: 0 auto;
         touch-action: none;
         cursor: grab;
@@ -510,57 +581,61 @@
         -webkit-tap-highlight-color: transparent;
     }
 
-    .panel-handle-chevron {
-        width: 9px;
-        height: 9px;
-        border-left: 2.5px solid #64748b;
-        border-top: 2.5px solid #64748b;
-        border-radius: 1.5px;
-        transform: translateY(2px) rotate(45deg);
-        transition: transform 240ms ease, border-color 200ms ease;
-    }
-
     .panel-handle-pill {
-        width: 40px;
-        height: 5px;
+        width: 38px;
+        height: 4.5px;
         border-radius: 999px;
-        background: #94a3b8;
+        background: #cbd5e1;
         transition: background-color 200ms ease, width 200ms ease;
     }
 
-    .panel-handle:active .panel-handle-pill {
-        background: var(--accent-green);
-        width: 46px;
+    .panel-sheet-header:active .panel-handle-pill {
+        background: #94a3b8;
+        width: 44px;
     }
 
-    .panel-handle:active .panel-handle-chevron {
-        border-color: var(--accent-green);
+    .panel-titulo-bar {
+        align-items: center;
+        padding-right: 32px;
     }
 
-    /* Al expandir el panel, la flecha apunta hacia abajo para indicar que puede minimizarse */
-    .panel_informacion.panel-expanded .panel-handle-chevron {
-        transform: translateY(-2px) rotate(225deg);
+    .panel-titulo-bar h2 {
+        font-size: 1.18rem;
+        line-height: 1.25;
+        text-align: left;
     }
 
+    .panel_informacion.panel-minimized .panel-titulo-bar h2 {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .panel_informacion.panel-minimized .btn_encabezado,
+    .panel_informacion.panel-minimized .panel-scroll-wrapper {
+        visibility: hidden;
+        pointer-events: none;
+    }
+
+    /* Botón X anclado en la esquina superior derecha del panel en móvil */
     .cerrar-panel {
         position: absolute;
-        top: 50%;
+        top: 8px;
         right: 12px;
-        transform: translateY(-50%);
-        width: 34px;
-        height: 34px;
-        font-size: 20px;
+        transform: none;
+        width: 32px;
+        height: 32px;
+        font-size: 24px;
         z-index: 30;
     }
 
     .cerrar-panel:active {
-        transform: translateY(-50%) scale(0.92);
+        transform: scale(0.92);
     }
 
-    /* Pestañas fijas en 1 sola fila tanto en vista parcial como expandida */
     .btn_encabezado {
         display: block;
-        padding: 4px 14px 10px;
+        padding: 4px 18px 10px;
     }
 
     .btn_encabezado ul {
@@ -571,13 +646,13 @@
 
     .btn_encabezado li {
         font-size: 0.78rem;
-        padding: 8px 4px;
-        min-height: 36px;
+        padding: 7px 4px;
+        min-height: 34px;
         border-radius: 10px;
     }
 
     #contenedor_panel_info {
-        padding: 12px 16px 20px;
+        padding: 12px 18px 20px;
         flex: 1;
         min-height: 0;
         overflow-y: auto;
@@ -586,16 +661,14 @@
         touch-action: pan-y;
     }
 
+    .panel-custom-scrollbar {
+        right: 5px;
+        width: 4px;
+        pointer-events: none;
+    }
+
     .contenedor_edificio_info {
         gap: 12px;
-    }
-
-    .edificio-header-accion {
-        gap: 8px;
-    }
-
-    .contenedor_edificio_info h2 {
-        font-size: 1.25rem;
     }
 
     #btn_direcciones {
@@ -608,7 +681,6 @@
         height: 150px;
     }
 
-    /* En vista parcial (45%), la foto es ligeramente más compacta para dejar ver el inicio de la descripción */
     .panel_informacion.panel-partial .contenedor_edificio_info img {
         height: 115px;
     }
@@ -621,13 +693,19 @@
 
 @media screen and (max-width: 480px) {
     .panel_informacion {
-        left: 50%;
-        right: auto;
+        left: 0;
+        right: 0;
         bottom: 0;
-        width: min(100vw - 8px, 540px);
+        width: 100%;
+        max-width: 100%;
         height: var(--panel-height, 45vh);
         height: var(--panel-height, 45dvh);
-        transform: translateX(-50%);
+        border-radius: 20px 20px 0 0;
+        transform: none;
+    }
+
+    .panel_informacion.panel-minimized {
+        --panel-height: 64px;
     }
 
     .panel_informacion.panel-partial {
@@ -639,12 +717,15 @@
     }
 
     .panel-sheet-header {
-        height: 40px;
-        padding: 6px 12px 0;
+        padding: 8px 16px 8px;
+    }
+
+    .panel-titulo-bar h2 {
+        font-size: 1.1rem;
     }
 
     .btn_encabezado {
-        padding: 4px 12px 8px;
+        padding: 4px 16px 8px;
     }
 
     .btn_encabezado li {
@@ -654,10 +735,15 @@
     }
 
     .cerrar-panel {
-        font-size: 19px;
-        width: 32px;
-        height: 32px;
+        top: 7px;
         right: 10px;
+        font-size: 23px;
+        width: 30px;
+        height: 30px;
+    }
+
+    #contenedor_panel_info {
+        padding: 12px 16px 20px;
     }
 
     #btn_direcciones {
@@ -665,21 +751,17 @@
         padding: 10px 14px;
     }
 
-    .contenedor_edificio_info h2 {
-        font-size: 1.15rem;
-    }
-
     .floor-button {
-        padding: 10px 16px;
+        padding: 9px 14px;
         font-size: 13px;
     }
 }
 
 #cubiculosLoading {
     text-align: center;
-    padding: 40px 20px;
+    padding: 36px 20px;
     color: var(--text-gray);
-    font-size: 16px;
+    font-size: 15px;
     background: var(--bg-light-gray);
     border-radius: 12px;
     border: 1px solid #e0e0e0;
@@ -692,15 +774,15 @@
 }
 
 .cubiculo-piso {
-    margin-bottom: 22px;
+    margin-bottom: 20px;
 }
 
 .cubiculo-piso-titulo {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 700;
     color: var(--accent-green);
     margin-bottom: 10px;
-    padding: 9px 14px;
+    padding: 8px 12px;
     background: #e8f5e9;
     border-left: 4px solid var(--accent-green);
     border-radius: 8px;
@@ -711,36 +793,36 @@
     flex-direction: column;
     gap: 8px;
     margin-bottom: 10px;
-    padding: 15px 16px;
+    padding: 13px 15px;
     cursor: pointer;
     border-radius: 12px;
-    transition: all 0.25s ease;
+    transition: all 0.2s ease;
     background: var(--bg-light-gray);
     border: 1px solid #e0e0e0;
     color: var(--text-dark);
 }
 
 .cubiculo-item:hover {
-    background: #e4e6e9;
-    transform: translateX(6px);
+    background: #e8ecf0;
+    transform: translateX(4px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     border-color: var(--accent-green);
 }
 
 .panel-item-resaltado {
-    border-color: #f08c00 !important;
-    background: #fff4e6 !important;
-    box-shadow: 0 0 0 2px rgba(240, 140, 0, 0.2) !important;
+    border-color: #f59e0b !important;
+    background: #fffbeb !important;
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2) !important;
 }
 
 .cubiculo-codigo {
     font-weight: 700;
-    font-size: 15px;
+    font-size: 14.5px;
     color: var(--text-dark);
 }
 
 .cubiculo-profesor {
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 600;
     color: var(--text-gray);
     display: flex;
@@ -748,10 +830,15 @@
     gap: 8px;
 }
 
+/* Ícono vectorial monocromático consistente con la estética limpia del sistema */
 .cubiculo-profesor::before {
-    content: '👤';
-    font-size: 16px;
+    content: "";
+    width: 15px;
+    height: 15px;
     flex-shrink: 0;
+    background-color: #4b5563;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3C/svg%3E") no-repeat center / contain;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3C/svg%3E") no-repeat center / contain;
 }
 
 .cubiculo-sin-profesor {
@@ -765,7 +852,7 @@
     flex-direction: column;
     gap: 4px;
     margin-top: 2px;
-    padding-left: 24px;
+    padding-left: 23px;
 }
 
 .cubiculo-contacto-item {
@@ -810,9 +897,9 @@
 
 .cubiculo-mensaje-vacio {
     text-align: center;
-    padding: 40px 20px;
+    padding: 36px 20px;
     color: var(--text-gray);
-    font-size: 15px;
+    font-size: 14.5px;
     background: var(--bg-light-gray);
     border-radius: 12px;
     border: 1px solid #e0e0e0;
@@ -820,12 +907,12 @@
 
 @media screen and (min-width: 769px) and (max-width: 1024px) {
     .panel_informacion {
-        width: 450px;
+        width: 440px;
     }
     
     .btn_encabezado li {
         font-size: 0.8rem;
-        padding: 9px 6px;
+        padding: 8px 6px;
     }
 }
 
@@ -846,7 +933,7 @@
 .panel_informacion:has(.contenedor_edificio_info.is-loading)::after {
     content: "";
     position: absolute;
-    top: 56%;
+    top: 58%;
     left: 50%;
     width: 36px;
     height: 36px;
@@ -858,9 +945,12 @@
     pointer-events: none;
 }
 
-/* Evita que aparezca cualquier scrollbar en el panel mientras carga */
 #contenedor_panel_info:has(.contenedor_edificio_info.is-loading) {
     overflow-y: hidden !important;
+}
+
+.panel-scroll-wrapper:has(.contenedor_edificio_info.is-loading) .panel-custom-scrollbar {
+    opacity: 0 !important;
 }
 
 .spinner-lista-centro {

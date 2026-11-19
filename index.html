@@ -11,13 +11,13 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" onerror="this.onerror=null; this.href='libs/leaflet/leaflet.css'" />
     <link rel="stylesheet" href="styles/styles_barra_navegacion.css?v=31">
     <link rel="stylesheet" href="styles/styles_btn_laterales.css?v=22">
-    <link rel="stylesheet" href="styles/styles_panel_derecho.css?v=25">
+    <link rel="stylesheet" href="styles/styles_panel_derecho.css?v=28">
     <link rel="stylesheet" href="styles/styles_etiquetas.css?v=21">
-    <link rel="stylesheet" href="styles/styles_rutas.css?v=21"> 
+    <link rel="stylesheet" href="styles/styles_rutas.css?v=22"> 
     <link rel="stylesheet" href="styles/styles_suggestion.css?v=21">
     <link rel="stylesheet" href="styles/styles_location.css?v=22">
     <link rel="stylesheet" href="styles/styles_config.css?v=2">
-    <link rel="stylesheet" href="styles/styles_horario.css?v=3">
+    <link rel="stylesheet" href="styles/styles_horario.css?v=4">
     <link rel="stylesheet" href="styles/styles_editor.css?v=1">
     <style>
         html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
@@ -62,7 +62,6 @@
 </head>
 
 <body>
-  
 
     <!-- Barra de navegacion -->
     <nav class="navbar">
@@ -129,16 +128,18 @@
     <!-- Panel de información -->
     <div id="panel_informacion" class="panel_informacion">
         <div class="panel-layout-inner">
-            <!-- Cabecera superior fija (Handle móvil + Botón cerrar) -->
+            <!-- Cabecera superior fija: Barra móvil + Nombre de edificio + Botón cerrar -->
             <div id="panelSheetHeader" class="panel-sheet-header" aria-label="Encabezado del panel">
                 <div id="panelHandle" class="panel-handle" aria-label="Deslizar panel" title="Deslizar panel">
-                    <span class="panel-handle-chevron" aria-hidden="true"></span>
                     <span class="panel-handle-pill" aria-hidden="true"></span>
                 </div>
-                <button type="button" id="cerrar-panel" class="cerrar-panel" aria-label="Cerrar panel" title="Cerrar">&times;</button>
+                <div class="panel-titulo-bar">
+                    <h2 id="edificioNombre"></h2>
+                    <button type="button" id="cerrar-panel" class="cerrar-panel" aria-label="Cerrar panel" title="Cerrar">&times;</button>
+                </div>
             </div>
 
-            <!-- Pestañas fijas en 1 sola fila -->
+            <!-- Botones de sección fijos en 1 sola fila -->
             <div class="btn_encabezado">
                 <ul>
                     <li id="infoTab" class="tablink active">Información</li>
@@ -150,49 +151,53 @@
                 </ul>
             </div>
 
-            <!-- Área única desplazable -->
-            <div id="contenedor_panel_info">
+            <!-- Área desplazable con indicador de scroll persistente -->
+            <div class="panel-scroll-wrapper">
+                <div id="contenedor_panel_info">
 
-                <!-- Contenido de Información -->
-                <div id="infoContent" class="tabcontent">
-                    <div class="contenedor_edificio_info">
-                        <div class="edificio-header-accion">
-                            <h2 id="edificioNombre"></h2>
+                    <!-- Contenido de Información: Cómo llegar -> Imagen -> Descripción -->
+                    <div id="infoContent" class="tabcontent">
+                        <div class="contenedor_edificio_info">
                             <button type="button" id="btn_direcciones" aria-label="Cómo llegar">
                                 <svg class="btn-direcciones-icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                     <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
                                 </svg>
                                 <span>Cómo llegar</span>
                             </button>
+                            <img id="edificioImagen" src="" alt="">
+                            <p id="edificioInfo"></p>
                         </div>
-                        <img id="edificioImagen" src="" alt="">
-                        <p id="edificioInfo"></p>
+                    </div>
+
+                    <!-- INTERIOR (Plantas deshabilitado temporalmente)
+                    <div id="interiorContent" class="tabcontent" style="display:none;">
+                        <img id="interiorImagen" src="" alt="planos" >
+                        <div id="floorButtonsContainer" class="floor-buttons"></div>
+                    </div>
+                    -->
+
+                    <!-- LISTA DE LOS SALONES -->
+                    <div id="salonesContent" class="tabcontent" style="display:none;">
+                        <ul>
+                            <li>sugerencia 1</li>
+                            <li>sugerencia 2</li>
+                            <li>sugerencia 3</li>
+                        </ul>
+                    </div>
+
+                    <!-- LISTA DE CUBÍCULOS -->
+                    <div id="cubiculosContent" class="tabcontent" style="display:none;">
+                        <div id="cubiculosLoading" style="text-align: center; padding: 20px;">
+                            Cargando cubículos...
+                        </div>
+                        <ul id="cubiculosList" style="list-style: none; padding: 0;">
+                        </ul>
                     </div>
                 </div>
 
-                <!-- INTERIOR (Plantas deshabilitado temporalmente)
-                <div id="interiorContent" class="tabcontent" style="display:none;">
-                    <img id="interiorImagen" src="" alt="planos" >
-                    <div id="floorButtonsContainer" class="floor-buttons"></div>
-                </div>
-                -->
-
-                <!-- LISTA DE LOS SALONES -->
-                <div id="salonesContent" class="tabcontent" style="display:none;">
-                    <ul>
-                        <li>sugerencia 1</li>
-                        <li>sugerencia 2</li>
-                        <li>sugerencia 3</li>
-                    </ul>
-                </div>
-
-                <!-- LISTA DE CUBÍCULOS -->
-                <div id="cubiculosContent" class="tabcontent" style="display:none;">
-                    <div id="cubiculosLoading" style="text-align: center; padding: 20px;">
-                        Cargando cubículos...
-                    </div>
-                    <ul id="cubiculosList" style="list-style: none; padding: 0;">
-                    </ul>
+                <!-- Indicador de scroll gris persistente -->
+                <div id="panelCustomScrollbar" class="panel-custom-scrollbar" aria-hidden="true">
+                    <div id="panelCustomScrollThumb" class="panel-custom-scroll-thumb"></div>
                 </div>
             </div>
         </div>
@@ -238,7 +243,7 @@
         })();
 
         function loadLocalScripts() {
-            const version = '?v=6';
+            const version = '?v=9';
             var scripts = [
                 'scripts/script_capa.js' + version,
                 'scripts/mapbox_router_php.js' + version,

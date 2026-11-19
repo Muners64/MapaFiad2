@@ -18,8 +18,8 @@ cerrarpanel.addEventListener('click', function () {
         controladorFetchActual = null;
     }
     panel_informacion.style.display = 'none';
-    panel_informacion.classList.remove('panel-partial', 'panel-expanded');
-    panel_informacion.dataset.panelState = 'collapsed';
+    panel_informacion.classList.remove('panel-minimized', 'panel-partial', 'panel-expanded');
+    panel_informacion.dataset.panelState = 'closed';
     if (typeof window.limpiarMarcadoresEspacios === 'function') {
         window.limpiarMarcadoresEspacios();
     }
@@ -34,8 +34,110 @@ var infoContent = document.getElementById('infoContent');
 var salonesContent = document.getElementById('salonesContent');
 var cubiculosContent = document.getElementById('cubiculosContent');
 var panelSheetHeader = document.getElementById('panelSheetHeader');
-var panelHandle = document.getElementById('panelHandle');
+var contenedorPanelInfo = document.getElementById('contenedor_panel_info');
+var panelCustomScrollbar = document.getElementById('panelCustomScrollbar');
+var panelCustomScrollThumb = document.getElementById('panelCustomScrollThumb');
 var resaltadoPendiente = null;
+
+/* Sincronización de barra de scroll gris permanente */
+function actualizarScrollbarPanel() {
+    if (!contenedorPanelInfo || !panelCustomScrollbar || !panelCustomScrollThumb) return;
+
+    if (!panelEstaVisible() || panel_informacion.classList.contains('panel-minimized')) {
+        panelCustomScrollbar.classList.remove('is-visible');
+        return;
+    }
+
+    var scrollHeight = contenedorPanelInfo.scrollHeight;
+    var clientHeight = contenedorPanelInfo.clientHeight;
+
+    if (scrollHeight <= clientHeight + 2 || clientHeight <= 0) {
+        panelCustomScrollbar.classList.remove('is-visible');
+        return;
+    }
+
+    panelCustomScrollbar.classList.add('is-visible');
+
+    var trackHeight = panelCustomScrollbar.clientHeight;
+    if (trackHeight <= 0) return;
+
+    var thumbHeight = Math.max(28, Math.round((clientHeight / scrollHeight) * trackHeight));
+    if (thumbHeight > trackHeight) thumbHeight = trackHeight;
+
+    var maxScrollTop = scrollHeight - clientHeight;
+    var maxThumbTop = trackHeight - thumbHeight;
+    var thumbTop = maxScrollTop > 0
+        ? Math.min(maxThumbTop, Math.max(0, Math.round((contenedorPanelInfo.scrollTop / maxScrollTop) * maxThumbTop)))
+        : 0;
+
+    panelCustomScrollThumb.style.height = thumbHeight + 'px';
+    panelCustomScrollThumb.style.transform = 'translateY(' + thumbTop + 'px)';
+}
+
+if (contenedorPanelInfo) {
+    contenedorPanelInfo.addEventListener('scroll', actualizarScrollbarPanel, { passive: true });
+
+    if (typeof ResizeObserver === 'function') {
+        var roPanelScroll = new ResizeObserver(function () {
+            actualizarScrollbarPanel();
+        });
+        roPanelScroll.observe(contenedorPanelInfo);
+        if (infoContent) roPanelScroll.observe(infoContent);
+        if (salonesContent) roPanelScroll.observe(salonesContent);
+        if (cubiculosContent) roPanelScroll.observe(cubiculosContent);
+    }
+
+    if (typeof MutationObserver === 'function') {
+        var moPanelScroll = new MutationObserver(function () {
+            requestAnimationFrame(actualizarScrollbarPanel);
+        });
+        moPanelScroll.observe(contenedorPanelInfo, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['style', 'class']
+        });
+    }
+}
+
+/* Soporte de arrastre directo sobre el scrollbar gris en escritorio */
+if (panelCustomScrollbar && contenedorPanelInfo) {
+    var scrollbarArrastre = { activo: false, inicioY: 0, inicioScrollTop: 0 };
+
+    panelCustomScrollbar.addEventListener('pointerdown', function (event) {
+        if (esVistaMovilPanel()) return;
+        event.preventDefault();
+        scrollbarArrastre.activo = true;
+        scrollbarArrastre.inicioY = event.clientY;
+        scrollbarArrastre.inicioScrollTop = contenedorPanelInfo.scrollTop;
+        panelCustomScrollbar.classList.add('is-dragging');
+        if (typeof panelCustomScrollbar.setPointerCapture === 'function') {
+            try { panelCustomScrollbar.setPointerCapture(event.pointerId); } catch (e) {}
+        }
+    });
+
+    panelCustomScrollbar.addEventListener('pointermove', function (event) {
+        if (!scrollbarArrastre.activo) return;
+        var trackHeight = panelCustomScrollbar.clientHeight;
+        var thumbHeight = panelCustomScrollThumb ? panelCustomScrollThumb.offsetHeight : 28;
+        var maxThumbTop = Math.max(1, trackHeight - thumbHeight);
+        var maxScrollTop = Math.max(0, contenedorPanelInfo.scrollHeight - contenedorPanelInfo.clientHeight);
+        var deltaY = event.clientY - scrollbarArrastre.inicioY;
+        contenedorPanelInfo.scrollTop = scrollbarArrastre.inicioScrollTop + (deltaY / maxThumbTop) * maxScrollTop;
+    });
+
+    function soltarScrollbarArrastre(event) {
+        if (!scrollbarArrastre.activo) return;
+        scrollbarArrastre.activo = false;
+        panelCustomScrollbar.classList.remove('is-dragging');
+        if (event && typeof panelCustomScrollbar.releasePointerCapture === 'function') {
+            try { panelCustomScrollbar.releasePointerCapture(event.pointerId); } catch (e) {}
+        }
+    }
+
+    panelCustomScrollbar.addEventListener('pointerup', soltarScrollbarArrastre);
+    panelCustomScrollbar.addEventListener('pointercancel', soltarScrollbarArrastre);
+}
 
 var panelMovilActivo = window.matchMedia('(max-width: 768px)');
 var panelMovilArrastre = {
@@ -83,6 +185,10 @@ function obtenerAlturaReservadaSuperior() {
     return Math.max(0, navBottom) + margenSeguridad;
 }
 
+function obtenerAlturaMinimizadaMovil() {
+    return window.innerWidth <= 480 ? 64 : 66;
+}
+
 function obtenerAlturaParcialMovil() {
     var alturaViewport = obtenerAlturaViewport();
     var parcial = Math.round(alturaViewport * 0.45);
@@ -99,18 +205,30 @@ function obtenerAlturaCompletaMovil() {
 function aplicarEstadoPanelMovil(estado) {
     if (!panel_informacion) return;
 
-    panel_informacion.classList.remove('panel-partial', 'panel-expanded');
+    panel_informacion.classList.remove('panel-minimized', 'panel-partial', 'panel-expanded');
 
     if (estado === 'expanded') {
         panel_informacion.classList.add('panel-expanded');
         panel_informacion.dataset.panelState = 'expanded';
         panel_informacion.style.setProperty('--panel-height', obtenerAlturaCompletaMovil() + 'px');
+        requestAnimationFrame(actualizarScrollbarPanel);
+        setTimeout(actualizarScrollbarPanel, 300);
+        return;
+    }
+
+    if (estado === 'minimized') {
+        panel_informacion.classList.add('panel-minimized');
+        panel_informacion.dataset.panelState = 'minimized';
+        panel_informacion.style.setProperty('--panel-height', obtenerAlturaMinimizadaMovil() + 'px');
+        actualizarScrollbarPanel();
         return;
     }
 
     panel_informacion.classList.add('panel-partial');
     panel_informacion.dataset.panelState = 'partial';
     panel_informacion.style.setProperty('--panel-height', obtenerAlturaParcialMovil() + 'px');
+    requestAnimationFrame(actualizarScrollbarPanel);
+    setTimeout(actualizarScrollbarPanel, 300);
 }
 
 function esVistaMovilPanel() {
@@ -133,25 +251,35 @@ function expandirPanelMovil() {
     aplicarEstadoPanelMovil('expanded');
 }
 
+function minimizarPanelMovil() {
+    if (!panel_informacion) return;
+    aplicarEstadoPanelMovil('minimized');
+}
+
 function cerrarPanelMovil() {
     if (!panel_informacion) return;
     panel_informacion.style.removeProperty('--panel-height');
-    panel_informacion.classList.remove('panel-partial', 'panel-expanded');
-    panel_informacion.dataset.panelState = 'collapsed';
+    panel_informacion.classList.remove('panel-minimized', 'panel-partial', 'panel-expanded');
+    panel_informacion.dataset.panelState = 'closed';
     panel_informacion.style.display = 'none';
 }
 
 function actualizarPanelMovilSegunVista() {
     if (!panel_informacion) return;
     if (esVistaMovilPanel()) {
-        if (panelEstaVisible() && panel_informacion.dataset.panelState !== 'collapsed') {
-            abrirPanelMovil();
+        if (panelEstaVisible() && panel_informacion.dataset.panelState !== 'closed') {
+            var estadoPrevio = panel_informacion.dataset.panelState;
+            if (estadoPrevio === 'expanded' || estadoPrevio === 'minimized') {
+                aplicarEstadoPanelMovil(estadoPrevio);
+            } else {
+                abrirPanelMovil();
+            }
         }
     } else {
-        panel_informacion.classList.remove('panel-expanded');
-        panel_informacion.classList.remove('panel-partial');
+        panel_informacion.classList.remove('panel-expanded', 'panel-partial', 'panel-minimized');
         panel_informacion.style.removeProperty('--panel-height');
         panel_informacion.dataset.panelState = '';
+        requestAnimationFrame(actualizarScrollbarPanel);
     }
 }
 
@@ -160,11 +288,19 @@ if (panelMovilActivo && typeof panelMovilActivo.addEventListener === 'function')
 }
 
 function recalcularAlturaPanelMovil() {
-    if (!panel_informacion || !esVistaMovilPanel()) return;
+    if (!panel_informacion || !esVistaMovilPanel()) {
+        requestAnimationFrame(actualizarScrollbarPanel);
+        return;
+    }
     if (!panelEstaVisible()) return;
     if (panelMovilArrastre.activo) return;
 
-    var estadoActual = panel_informacion.classList.contains('panel-expanded') ? 'expanded' : 'partial';
+    var estadoActual = 'partial';
+    if (panel_informacion.classList.contains('panel-expanded')) {
+        estadoActual = 'expanded';
+    } else if (panel_informacion.classList.contains('panel-minimized')) {
+        estadoActual = 'minimized';
+    }
     aplicarEstadoPanelMovil(estadoActual);
 }
 
@@ -174,22 +310,6 @@ window.addEventListener('orientationchange', function () {
 });
 if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', recalcularAlturaPanelMovil);
-}
-
-if (panelHandle) {
-    panelHandle.addEventListener('click', function () {
-        if (!esVistaMovilPanel()) return;
-
-        if (panelMovilArrastre.ignorarProximoClick) {
-            panelMovilArrastre.ignorarProximoClick = false;
-            return;
-        }
-        if (panel_informacion.classList.contains('panel-expanded')) {
-            aplicarEstadoPanelMovil('partial');
-        } else {
-            expandirPanelMovil();
-        }
-    });
 }
 
 function obtenerCoordenadasEvento(event) {
@@ -218,11 +338,14 @@ function iniciarArrastrePanel(event) {
     panelMovilArrastre.inicioY = coords.y;
     panelMovilArrastre.inicioX = coords.x;
     panelMovilArrastre.inicioHeight = panel_informacion.getBoundingClientRect().height;
-    if (!panelMovilArrastre.inicioHeight && panel_informacion.classList.contains('panel-expanded')) {
-        panelMovilArrastre.inicioHeight = obtenerAlturaCompletaMovil();
-    }
-    if (!panelMovilArrastre.inicioHeight && panel_informacion.classList.contains('panel-partial')) {
-        panelMovilArrastre.inicioHeight = obtenerAlturaParcialMovil();
+    if (!panelMovilArrastre.inicioHeight) {
+        if (panel_informacion.classList.contains('panel-expanded')) {
+            panelMovilArrastre.inicioHeight = obtenerAlturaCompletaMovil();
+        } else if (panel_informacion.classList.contains('panel-minimized')) {
+            panelMovilArrastre.inicioHeight = obtenerAlturaMinimizadaMovil();
+        } else {
+            panelMovilArrastre.inicioHeight = obtenerAlturaParcialMovil();
+        }
     }
     panelMovilArrastre.currentHeight = panelMovilArrastre.inicioHeight;
     panelMovilArrastre.lastY = coords.y;
@@ -248,7 +371,7 @@ function moverArrastrePanel(event) {
         event.preventDefault();
     }
 
-    var alturaMinima = obtenerAlturaParcialMovil();
+    var alturaMinima = obtenerAlturaMinimizadaMovil();
     var alturaMaxima = obtenerAlturaCompletaMovil();
     var siguiente = panelMovilArrastre.inicioHeight - deltaY;
     if (siguiente < alturaMinima) siguiente = alturaMinima;
@@ -258,15 +381,17 @@ function moverArrastrePanel(event) {
     panelMovilArrastre.lastY = coords.y;
     panelMovilArrastre.lastTime = Date.now();
 
-    if (siguiente >= alturaMaxima - 24) {
+    panel_informacion.classList.remove('panel-minimized', 'panel-partial', 'panel-expanded');
+    if (siguiente <= alturaMinima + 18) {
+        panel_informacion.classList.add('panel-minimized');
+    } else if (siguiente >= alturaMaxima - 24) {
         panel_informacion.classList.add('panel-expanded');
-        panel_informacion.classList.remove('panel-partial');
     } else {
         panel_informacion.classList.add('panel-partial');
-        panel_informacion.classList.remove('panel-expanded');
     }
 
     panel_informacion.style.setProperty('--panel-height', siguiente + 'px');
+    actualizarScrollbarPanel();
 }
 
 function finalizarArrastrePanel(event) {
@@ -278,8 +403,11 @@ function finalizarArrastrePanel(event) {
         try { event.currentTarget.releasePointerCapture(event.pointerId); } catch (error) {}
     }
 
+    // Toque simple sobre la cabecera/píldora
     if (!panelMovilArrastre.armed) {
-        if (panel_informacion.classList.contains('panel-expanded')) {
+        if (panel_informacion.classList.contains('panel-minimized')) {
+            aplicarEstadoPanelMovil('partial');
+        } else if (panel_informacion.classList.contains('panel-expanded')) {
             aplicarEstadoPanelMovil('partial');
         } else {
             expandirPanelMovil();
@@ -287,31 +415,48 @@ function finalizarArrastrePanel(event) {
         return;
     }
 
-    panelMovilArrastre.ignorarProximoClick = true;
-
     var alturaActual = panelMovilArrastre.currentHeight;
-    var alturaParcial = obtenerAlturaParcialMovil();
-    var alturaCompleta = obtenerAlturaCompletaMovil();
+    var alturaMin = obtenerAlturaMinimizadaMovil();
+    var alturaMid = obtenerAlturaParcialMovil();
+    var alturaMax = obtenerAlturaCompletaMovil();
     var tiempoTranscurrido = Math.max(1, Date.now() - panelMovilArrastre.lastTime);
     var velocidad = (panelMovilArrastre.lastY - panelMovilArrastre.inicioY) / tiempoTranscurrido;
 
-    if (velocidad < -0.7) {
-        expandirPanelMovil();
+    var umbralBajo = alturaMin + ((alturaMid - alturaMin) * 0.45);
+    var umbralAlto = alturaMid + ((alturaMax - alturaMid) * 0.45);
+
+    // Deslizamiento rápido hacia arriba
+    if (velocidad < -0.65) {
+        if (panelMovilArrastre.inicioHeight <= alturaMid + 30 && alturaActual < umbralAlto) {
+            aplicarEstadoPanelMovil('partial');
+        } else {
+            expandirPanelMovil();
+        }
         return;
     }
 
-    if (velocidad > 0.7) {
+    // Deslizamiento rápido hacia abajo
+    if (velocidad > 0.65) {
+        if (panelMovilArrastre.inicioHeight >= alturaMid - 30 && alturaActual > umbralBajo) {
+            aplicarEstadoPanelMovil('partial');
+        } else {
+            minimizarPanelMovil();
+        }
+        return;
+    }
+
+    // Ajuste por posición final
+    if (alturaActual < umbralBajo) {
+        minimizarPanelMovil();
+        return;
+    }
+
+    if (alturaActual < umbralAlto) {
         aplicarEstadoPanelMovil('partial');
         return;
     }
 
-    var puntoMedio = alturaParcial + ((alturaCompleta - alturaParcial) * 0.5);
-    if (alturaActual >= puntoMedio) {
-        expandirPanelMovil();
-        return;
-    }
-
-    aplicarEstadoPanelMovil('partial');
+    expandirPanelMovil();
 }
 
 if (panelSheetHeader) {
@@ -376,9 +521,8 @@ function aplicarResaltadoEnTab(tab) {
 }
 
 function openTab(tabName) {
-    var panelScroll = document.getElementById('contenedor_panel_info');
-    if (panelScroll) {
-        panelScroll.scrollTop = 0;
+    if (contenedorPanelInfo) {
+        contenedorPanelInfo.scrollTop = 0;
     }
 
     infoContent.style.display = 'none';
@@ -406,6 +550,8 @@ function openTab(tabName) {
         cubiculosContent.style.display = 'block';
         cubiculosTab.classList.add('active');
     }
+
+    requestAnimationFrame(actualizarScrollbarPanel);
 }
 
 window.abrirTabPanel = openTab;
@@ -471,6 +617,7 @@ function renderizarSalonesDesdeEspacios(espacios) {
         mensajeVacio.className = 'salon-mensaje-vacio';
         mensajeVacio.textContent = 'No hay salones/laboratorios/talleres registrados.';
         salonesList.appendChild(mensajeVacio);
+        requestAnimationFrame(actualizarScrollbarPanel);
         return;
     }
 
@@ -524,21 +671,22 @@ function renderizarSalonesDesdeEspacios(espacios) {
     });
 
     aplicarResaltadoEnTab('salones');
+    requestAnimationFrame(actualizarScrollbarPanel);
 }
 
 function establecerEstadoSkeletonTarjeta(cargando) {
     var contenedor = document.querySelector('.contenedor_edificio_info');
     var infoEl = document.getElementById('edificioInfo');
-    var panelScroll = document.getElementById('contenedor_panel_info');
     if (!contenedor) return;
 
     if (cargando) {
         if (infoEl) infoEl.textContent = '';
-        if (panelScroll) panelScroll.scrollTop = 0;
+        if (contenedorPanelInfo) contenedorPanelInfo.scrollTop = 0;
         contenedor.classList.add('is-loading');
     } else {
         contenedor.classList.remove('is-loading');
     }
+    requestAnimationFrame(actualizarScrollbarPanel);
 }
 
 function aplicarImagenSegura(imgElement, rutaImagen, tokenEsperado, onListo) {
@@ -607,6 +755,7 @@ function cargarSalones(codigoEdificio, tokenEsperado) {
     var salonesContainer = document.getElementById('salonesContent');
     var salonesList = salonesContainer.getElementsByTagName('ul')[0];
     salonesList.innerHTML = '<div class="spinner-lista-centro"></div>';
+    requestAnimationFrame(actualizarScrollbarPanel);
 
     var apiUrl = construirUrlApi('espacios.php?edificio=' + encodeURIComponent(codigoEdificio) + '&limit=200');
 
@@ -647,6 +796,7 @@ function aplicarDatosEdificioEnDOM(ed, edificioBase, token) {
     var imagenPrincipal = ed.foto_principal_url || 'img/prueba.jpg';
     aplicarImagenSegura(document.getElementById('edificioImagen'), imagenPrincipal, token, function () {
         establecerEstadoSkeletonTarjeta(false);
+        requestAnimationFrame(actualizarScrollbarPanel);
     });
 
     /* Plantas deshabilitado temporalmente
@@ -670,6 +820,8 @@ function aplicarDatosEdificioEnDOM(ed, edificioBase, token) {
     if (ed.latitud && ed.longitud) {
         edificioBase._coordsAPI = [parseFloat(ed.latitud), parseFloat(ed.longitud)];
     }
+
+    requestAnimationFrame(actualizarScrollbarPanel);
 }
 
 function mostrarPanelEdificio(edificio) {
@@ -686,8 +838,7 @@ function mostrarPanelEdificio(edificio) {
     // Resetear listas internas y scroll
     document.getElementById('cubiculosList').innerHTML = '';
     document.getElementById('cubiculosLoading').style.display = 'none';
-    var panelScroll = document.getElementById('contenedor_panel_info');
-    if (panelScroll) panelScroll.scrollTop = 0;
+    if (contenedorPanelInfo) contenedorPanelInfo.scrollTop = 0;
     // actualizarVisibilidadPlantas([], 0); // Plantas deshabilitado temporalmente
 
     var codigoAPI = extraerCodigoEdificio(edificio);
@@ -703,8 +854,8 @@ function mostrarPanelEdificio(edificio) {
             if (miToken === tokenSeleccionActual) abrirPanelMovil();
         });
     } else {
-        panel_informacion.classList.remove('panel-expanded');
-        panel_informacion.classList.remove('panel-partial');
+        panel_informacion.classList.remove('panel-expanded', 'panel-partial', 'panel-minimized');
+        requestAnimationFrame(actualizarScrollbarPanel);
     }
 
     if (cubiculosContent.style.display === 'block' && codigoAPI) {
@@ -778,32 +929,29 @@ function mostrarPanelEdificio(edificio) {
 
     document.getElementById('btn_direcciones').onclick = function () {
         if (edificio) {
-            endPoint = (typeof window.obtenerPuntoEdificio === 'function')
+            var destinoCoords = (typeof window.obtenerPuntoEdificio === 'function')
                 ? window.obtenerPuntoEdificio(edificio)
                 : (edificio.labelCoords || edificio.coords[0]);
-            if (!endPoint) return;
+            if (!destinoCoords) return;
 
-            if (window.endMarker) {
-                map.removeLayer(window.endMarker);
+            var nombreDestino = document.getElementById('edificioNombre').innerText || edificio.nombre || edificio.codigo || 'Destino';
+
+            if (typeof window.iniciarRutaHacia === 'function') {
+                window.iniciarRutaHacia(destinoCoords, nombreDestino);
+            } else {
+                endPoint = destinoCoords;
+                window.destinoNombreActual = nombreDestino;
+                if (window.endMarker) map.removeLayer(window.endMarker);
+                window.endMarker = L.marker(endPoint, {
+                    draggable: true,
+                    icon: window.iconoDestinoRojo
+                }).addTo(map);
+                if (typeof window.limpiarMarcadoresEspacios === 'function') {
+                    window.limpiarMarcadoresEspacios();
+                }
+                updateRoute(true);
             }
 
-            var opcionesMarcador = { draggable: true };
-            if (window.iconoDestinoRojo) {
-                opcionesMarcador.icon = window.iconoDestinoRojo;
-            }
-
-            window.endMarker = L.marker(endPoint, opcionesMarcador).addTo(map);
-            window.endMarker.on('dragend', function () {
-                endPoint = window.endMarker.getLatLng();
-                updateRoute();
-            });
-
-            // Limpiar el pin verde de selección para que no se encime con el pin rojo de destino
-            if (typeof window.limpiarMarcadoresEspacios === 'function') {
-                window.limpiarMarcadoresEspacios();
-            }
-
-            updateRoute();
             panel_informacion.style.display = 'none';
         }
     };
@@ -847,12 +995,14 @@ function cargarCubiculos(codigoEdificio, tokenEsperado) {
             mostrarCubiculos(cubCached);
         } else {
             cubiculosList.innerHTML = '<li class="cubiculo-mensaje-vacio">No hay cubículos registrados en este edificio.</li>';
+            requestAnimationFrame(actualizarScrollbarPanel);
         }
         return;
     }
 
     loadingDiv.style.display = 'none';
     cubiculosList.innerHTML = '<div class="spinner-lista-centro"></div>';
+    requestAnimationFrame(actualizarScrollbarPanel);
 
     var basePath = window.location.pathname.replace(/\/[^\/]*$/, '');
     var apiUrl = window.location.origin + basePath + '/api/espacios.php?tipo=4&edificio=' + encodeURIComponent(codigoEdificio);
@@ -869,13 +1019,15 @@ function cargarCubiculos(codigoEdificio, tokenEsperado) {
                 mostrarCubiculos(lista);
             } else {
                 cubiculosList.innerHTML = '<li class="cubiculo-mensaje-vacio">No hay cubículos registrados en este edificio.</li>';
+                requestAnimationFrame(actualizarScrollbarPanel);
             }
         })
         .catch(function (error) {
             if (error && error.name === 'AbortError') return;
             console.error('Error al cargar cubículos:', error);
             if (token === tokenSeleccionActual) {
-                cubiculosList.innerHTML = '<li class="cubiculo-mensaje-vacio" style="color: #e94560;">Error al cargar cubículos. Intenta de nuevo.</li>';
+                cubiculosList.innerHTML = '<li class="cubiculo-mensaje-vacio" style="color: #dc2626;">Error al cargar cubículos. Intenta de nuevo.</li>';
+                requestAnimationFrame(actualizarScrollbarPanel);
             }
         });
 }
@@ -1033,6 +1185,7 @@ function mostrarCubiculos(cubiculos) {
     });
 
     aplicarResaltadoEnTab('cubiculos');
+    requestAnimationFrame(actualizarScrollbarPanel);
 }
 
 window.buscarYResaltarEnPanel = function (opciones) {
@@ -1061,5 +1214,6 @@ window.buscarYResaltarEnPanel = function (opciones) {
 
     setTimeout(function () {
         aplicarResaltadoEnTab(tab);
+        actualizarScrollbarPanel();
     }, 400);
 };

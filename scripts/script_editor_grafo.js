@@ -12,7 +12,7 @@
     id: 'navegar',
     label: '✏️ Editar / Seleccionar',
     color: '#334155',
-    ayuda: '✏️ <strong>Editar / Seleccionar:</strong> Arrastra vértices, puntos de interés o pines <strong>🎯</strong> de edificios (clic para editar propiedades).'
+    ayuda: '✏️ <strong>Editar / Seleccionar:</strong> Arrastra vértices, puntos de descenso, rampas, POIs o pines <strong>🎯</strong> de edificios (clic para editar o eliminar).'
   };
 
   function gc() {
@@ -288,12 +288,10 @@
     }
   };
 
-  // Alias de compatibilidad
   window.toggleEditorGrafo = function () {
     return window.EditorMapa.toggle();
   };
 
-  // Procesar módulos que se hayan registrado antes de cargar este script
   if (Array.isArray(window._editorModulosPendientes)) {
     window._editorModulosPendientes.forEach(function (m) {
       window.EditorMapa.registrarModulo(m);
@@ -316,9 +314,18 @@
   });
 
   // ===========================================================================
-  // Módulo Registrable del Grafo Peatonal (Caminos, Rampas, Escaleras, Cortes)
+  // Módulo Registrable del Grafo Peatonal (Caminos, Rampas, Escaleras, Cortes, Descenso)
   // ===========================================================================
-  var herramientasGrafo = ['rampa', 'normal', 'escalera', 'cortar', 'escalon', 'corte_punto'];
+  var herramientasGrafo = [
+    'rampa',
+    'rampa_punto',
+    'normal',
+    'escalera',
+    'cortar',
+    'escalon',
+    'corte_punto',
+    'punto_descenso'
+  ];
   var puntosTrazoActual = [];
   var ultimaGeoOSM = null;
   var herramientaGrafoActual = 'navegar';
@@ -334,16 +341,22 @@
   var COLORES_TIPO = {
     normal: '#2563eb',
     rampa: '#16a34a',
+    rampa_punto: '#10b981',
     escalera: '#ea580c',
     cortar: '#dc2626',
     escalon: '#f59e0b',
     corte_punto: '#b91c1c',
+    punto_descenso: '#0284c7',
     calle_interna: '#64748b',
     carretera: '#94a3b8'
   };
 
   function esHerramientaDeGrafo(id) {
     return herramientasGrafo.indexOf(id) !== -1;
+  }
+
+  function esHerramientaPuntual(id) {
+    return id === 'escalon' || id === 'corte_punto' || id === 'rampa_punto' || id === 'punto_descenso';
   }
 
   function estiloArista(props) {
@@ -551,6 +564,28 @@
     });
   }
 
+  function crearIconoPuntoGrafo(tipoPt, draggable) {
+    var fillColor = COLORES_TIPO[tipoPt] || '#b91c1c';
+    if (tipoPt === 'punto_descenso') {
+      return L.divIcon({
+        className: 'grafo-punto-descenso-handle',
+        iconSize: [26, 26],
+        iconAnchor: [13, 13],
+        html:
+          '<div style="width:26px;height:26px;border-radius:50%;background:#0284c7;border:2.5px solid #ffffff;' +
+          'box-shadow:0 2px 6px rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;' +
+          'font-size:13px;line-height:1;color:#fff;cursor:' + (draggable ? 'grab' : 'default') + ';box-sizing:border-box;">🚗</div>'
+      });
+    }
+
+    return L.divIcon({
+      className: 'grafo-punto-handle',
+      iconSize: [16, 16],
+      iconAnchor: [8, 8],
+      html: '<div style="width:16px;height:16px;border-radius:50%;background:' + fillColor + ';border:2.5px solid #ffffff;box-shadow:0 1px 5px rgba(0,0,0,0.75);cursor:' + (draggable ? 'grab' : 'default') + ';box-sizing:border-box;"></div>'
+    });
+  }
+
   function dibujarCapaPersonalizada() {
     if (!editorActivo || typeof map === 'undefined') return;
     if (capaEditorCustom) map.removeLayer(capaEditorCustom);
@@ -559,7 +594,13 @@
     var esModoSeleccionar = (herramientaGrafoActual === 'navegar');
     var prioMap = gc().PRIORIDAD_TRAMO;
 
-    var featuresOrdenadas = (gc().ediciones.tramos_nuevos.features || []).slice().sort(function (a, b) {
+    var features = gc().ediciones.tramos_nuevos.features || [];
+    features.forEach(function (f, idx) {
+      if (!f.properties) f.properties = {};
+      if (!f.properties.id) f.properties.id = 'feat_' + Date.now() + '_' + idx;
+    });
+
+    var featuresOrdenadas = features.slice().sort(function (a, b) {
       var pA = a.geometry && a.geometry.type === 'Point' ? 10 : (prioMap[(a.properties && a.properties.tipo) || 'normal'] || 0);
       var pB = b.geometry && b.geometry.type === 'Point' ? 10 : (prioMap[(b.properties && b.properties.tipo) || 'normal'] || 0);
       return pA - pB;
@@ -569,15 +610,43 @@
       interactive: esModoSeleccionar,
       style: function (f) { return estiloArista(f.properties || {}); },
       pointToLayer: function (f, latlng) {
-        var esEscalon = f.properties && f.properties.tipo === 'escalon';
-        return L.circleMarker(latlng, {
-          radius: 7,
-          color: '#ffffff',
-          weight: 2,
-          fillColor: esEscalon ? '#f59e0b' : '#b91c1c',
-          fillOpacity: 1,
-          interactive: esModoSeleccionar
+        var tipoPt = (f.properties && f.properties.tipo) || 'corte_punto';
+
+        if (!esModoSeleccionar) {
+          if (tipoPt === 'punto_descenso') {
+            return L.marker(latlng, {
+              interactive: false,
+              zIndexOffset: 1020,
+              icon: crearIconoPuntoGrafo(tipoPt, false)
+            });
+          }
+          return L.circleMarker(latlng, {
+            radius: 7,
+            color: '#ffffff',
+            weight: 2.5,
+            fillColor: COLORES_TIPO[tipoPt] || '#b91c1c',
+            fillOpacity: 1,
+            interactive: false
+          });
+        }
+
+        var markerPt = L.marker(latlng, {
+          draggable: true,
+          zIndexOffset: 1050,
+          icon: crearIconoPuntoGrafo(tipoPt, true)
         });
+
+        markerPt.on('drag', function (ev) {
+          var snap = obtenerPuntoConIman(ev.target.getLatLng(), null);
+          f.geometry.coordinates = snap.coord;
+          ev.target.setLatLng([snap.coord[1], snap.coord[0]]);
+        });
+
+        markerPt.on('dragend', function () {
+          if (typeof updateRoute === 'function') updateRoute();
+        });
+
+        return markerPt;
       },
       onEachFeature: function (f, layer) {
         if (f.properties && f.properties.id && f.geometry && f.geometry.type === 'LineString') {
@@ -589,7 +658,12 @@
             var p = f.properties || {};
             var html = '<div class="fiad-editor-popup">';
             if (f.geometry.type === 'Point') {
-              html += '<strong>' + (p.tipo === 'escalon' ? '🪜 Escalón aislado' : '⛔ Corte puntual') + '</strong>' +
+              var tituloPt = '⛔ Corte puntual';
+              if (p.tipo === 'escalon') tituloPt = '🪜 Escalón aislado';
+              else if (p.tipo === 'rampa_punto') tituloPt = '♿ Rampa de banqueta';
+              else if (p.tipo === 'punto_descenso') tituloPt = '🚗 Punto de descenso';
+
+              html += '<strong>' + tituloPt + '</strong>' +
                 '<button class="fiad-editor-popup-btn" style="background:#dc2626;" onclick="window._GrafoEditor._eliminarFeature(\'' + p.id + '\')">🗑️ Eliminar punto</button>';
             } else {
               html += '<strong>Tramo: ' + escaparHTML((p.tipo || 'normal').toUpperCase()) + '</strong>' +
@@ -644,7 +718,7 @@
 
       if (capaEditorCustom) capaEditorCustom.bringToFront();
       dibujarHandlesVertices(gc().ediciones.tramos_nuevos.features || []);
-      if (ctxGrafo) ctxGrafo.setEstado('✅ <strong>Grafo listo</strong> (' + baseOSM.features.length + ' vías) — Arrastra vértices, POIs o pines <strong>🎯</strong>.');
+      if (ctxGrafo) ctxGrafo.setEstado('✅ <strong>Grafo listo</strong> (' + baseOSM.features.length + ' vías) — Arrastra vértices, puntos de descenso, rampas, POIs o pines <strong>🎯</strong>.');
     } catch (err) {
       if (ctxGrafo) ctxGrafo.setEstado('⚠️ Overpass ocupado — espera unos segundos y presiona <strong>Recargar zona</strong>');
     }
@@ -689,7 +763,9 @@
     id: 'grafo',
     orden: 10,
     herramientas: [
-      { id: 'rampa', label: '♿ Rampa', color: '#16a34a', ayuda: '♿ <strong>Rampa / Accesible:</strong> Traza punto a punto sobre el mapa o vértices (doble clic para terminar).' },
+      { id: 'punto_descenso', label: '🚗 Punto de descenso', color: '#0284c7', ayuda: '🚗 <strong>Punto de descenso:</strong> Haz 1 clic en un estacionamiento o bahía segura donde los autos pueden bajar pasajeros.' },
+      { id: 'rampa', label: '♿ Rampa (Tramo)', color: '#16a34a', ayuda: '♿ <strong>Rampa (Tramo):</strong> Traza punto a punto sobre una rampa larga o inclinada (doble clic para terminar).' },
+      { id: 'rampa_punto', label: '♿ Rampa banqueta', color: '#059669', ayuda: '♿ <strong>Rampa de banqueta (Punto):</strong> Haz 1 clic donde hay rebaje o rampa para subir/bajar de la banqueta.' },
       { id: 'normal', label: '🚶 Camino Normal', color: '#2563eb', ayuda: '🚶 <strong>Camino Normal:</strong> Traza andadores o pasos peatonales (doble clic para terminar).' },
       { id: 'escalera', label: '🪜 Escalera (Tramo)', color: '#ea580c', ayuda: '🪜 <strong>Tramo de Escaleras:</strong> Marca de Punto A a Punto B dónde están las escaleras.' },
       { id: 'cortar', label: '🚫 Cortar Tramo', color: '#dc2626', ayuda: '🚫 <strong>Cortar Tramo (A → B):</strong> Marca los extremos del segmento exacto a bloquear.' },
@@ -736,7 +812,7 @@
       if (!esHerramientaDeGrafo(herramientaId)) return;
       var coord = obtenerPuntoConIman(e.latlng, null).coord;
 
-      if (herramientaId === 'escalon' || herramientaId === 'corte_punto') {
+      if (esHerramientaPuntual(herramientaId)) {
         gc().ediciones.tramos_nuevos.features.push({
           type: 'Feature',
           properties: { id: 'pt_' + Date.now(), tipo: herramientaId },
@@ -805,7 +881,7 @@
       return {
         ok: Boolean(res.ok),
         mensaje: res.mensaje,
-        resumen: res.ok ? 'Red peatonal actualizada' : ''
+        resumen: res.ok ? 'Red peatonal y puntos de descenso actualizados' : ''
       };
     }
   };

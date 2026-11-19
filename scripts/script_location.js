@@ -125,11 +125,13 @@
           const esPrimeraLectura = primerCentrado;
           primerCentrado = false;
 
-          // Evitar disparar recálculos repetidos por ruido del GPS cuando el usuario está quieto
+          // Evitar disparar recálculos cuando el usuario está quieto o hay ruido de GPS
           if (!esPrimeraLectura && ultimaPosEmitida) {
             const metrosMovidos = distanciaMetros(ultimaPosEmitida.lat, ultimaPosEmitida.lng, lat, lng);
-            const tiempoTranscurrido = ahora - ultimaPosEmitida.timestamp;
-            if (metrosMovidos < 3 && tiempoTranscurrido < 5000) {
+            if (metrosMovidos < 4) {
+              return;
+            }
+            if (accuracy && accuracy > 65 && metrosMovidos < accuracy * 0.5) {
               return;
             }
           }

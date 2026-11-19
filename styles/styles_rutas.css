@@ -1,14 +1,373 @@
-.leaflet-routing-geocoders {
+/* Tarjeta flotante ultra-concisa de resumen de viaje (Escritorio y Móvil) */
+.fiad-ruta-card {
+    position: fixed;
+    top: 78px;
+    left: 20px;
+    width: 330px;
+    max-width: calc(100vw - 40px);
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: #1a1a1a;
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+    border: 1px solid #e0e0e0;
+    padding: 11px 13px;
+    z-index: 340;
     display: none;
     flex-direction: column;
+    gap: 8px;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    animation: fiadRutaSlideIn 0.22s ease-out;
 }
 
-.leaflet-routing-geocoders > div {
+.fiad-ruta-card.is-visible {
+    display: flex;
+}
+
+@keyframes fiadRutaSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Cabecera compacta en 1 fila: Badge + Destino + Acciones limpias sin círculo */
+.fiad-ruta-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    min-width: 0;
+}
+
+.fiad-ruta-header-main {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    flex: 1;
+}
+
+.fiad-ruta-modo-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background-color: #e8f5e9;
+    color: #1e7e24;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.fiad-ruta-modo-badge.is-hybrid {
+    background-color: #eff6ff;
+    color: #1d4ed8;
+}
+
+.fiad-ruta-modo-badge.is-accessible {
+    background-color: #ecfdf5;
+    color: #047857;
+}
+
+.fiad-ruta-destino {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #1a1a1a;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.fiad-ruta-header-btns {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+/* Botones de cabecera consistentes con .config-close-btn y .search-collapse-btn (sin círculo) */
+.fiad-ruta-icon-btn {
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #666666;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0;
+    transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.fiad-ruta-icon-btn:hover {
+    background-color: #f4f6f8;
+    color: #1a1a1a;
+}
+
+.fiad-ruta-icon-btn.is-cancel:hover {
+    background-color: #fef2f2;
+    color: #dc2626;
+}
+
+.fiad-ruta-icon-btn:active {
+    transform: scale(0.92);
+}
+
+.fiad-ruta-toggle-btn {
     display: none;
-    align-items: center;  
+    font-size: 13px;
 }
 
-.leaflet-routing-container {
+/* Métricas en 1 sola línea compacta */
+.fiad-ruta-metricas {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 7px 10px;
+    background-color: #f4f6f8;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+}
+
+.fiad-ruta-tiempo {
+    font-size: 1.18rem;
+    font-weight: 800;
+    color: #2da832;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+.fiad-ruta-tiempo.is-hybrid {
+    color: #2563eb;
+}
+
+.fiad-ruta-submetricas {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #666666;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Desglose híbrido en 1 línea discreta */
+.fiad-ruta-desglose {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    color: #4b5563;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fiad-ruta-tramo-auto {
+    color: #1d4ed8;
+}
+
+.fiad-ruta-tramo-pie {
+    color: #15803d;
+}
+
+/* Aviso compacto de accesibilidad o GPS */
+.fiad-ruta-aviso {
+    font-size: 11.5px;
+    line-height: 1.3;
+    padding: 5px 8px;
+    border-radius: 8px;
+    background-color: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+    font-weight: 600;
+}
+
+.fiad-ruta-aviso.is-ok {
+    background-color: #e8f5e9;
+    border-color: #bbf7d0;
+    color: #1e7e24;
+}
+
+.fiad-ruta-aviso.is-info {
+    background-color: #eff6ff;
+    border-color: #bfdbfe;
+    color: #1e40af;
+}
+
+/* Chips compactos de rutas alternativas en fila horizontal */
+.fiad-ruta-alternativas {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.fiad-ruta-alternativas::-webkit-scrollbar {
     display: none;
 }
 
+.fiad-ruta-alt-btn {
+    flex: 1 1 0;
+    min-width: 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 6px 8px;
+    border-radius: 10px;
+    border: 1px solid #e0e0e0;
+    background-color: #ffffff;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+    font-family: inherit;
+}
+
+.fiad-ruta-alt-btn:hover {
+    background-color: #f4f6f8;
+    border-color: #cbd5e1;
+}
+
+.fiad-ruta-alt-btn.is-selected {
+    border-color: #2da832;
+    background-color: #e8f5e9;
+}
+
+.fiad-ruta-alt-tag {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #666666;
+    white-space: nowrap;
+}
+
+.fiad-ruta-alt-btn.is-selected .fiad-ruta-alt-tag {
+    color: #1e7e24;
+}
+
+.fiad-ruta-alt-meta {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #1a1a1a;
+    white-space: nowrap;
+}
+
+/* Fila compacta cuando falta activar GPS */
+.fiad-ruta-gps-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.fiad-ruta-gps-hint {
+    font-size: 12px;
+    color: #666666;
+    line-height: 1.25;
+}
+
+.fiad-ruta-btn-ubicacion {
+    padding: 7px 11px;
+    border: none;
+    border-radius: 10px;
+    background-color: #2563eb;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-family: inherit;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.fiad-ruta-btn-ubicacion:hover {
+    background-color: #1d4ed8;
+}
+
+.fiad-ruta-btn-ubicacion:active {
+    transform: scale(0.96);
+}
+
+/* Pin de transición Auto -> Caminar en la entrada del campus (conservado) */
+.fiad-pin-transicion {
+    background: #1d4ed8;
+    color: #ffffff;
+    border: 2.5px solid #ffffff;
+    border-radius: 999px;
+    width: 28px !important;
+    height: 28px !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+}
+
+/* ============================================================
+   MÓVIL: Tarjeta compacta inferior + modo minimizado de 1 fila
+   ============================================================ */
+@media screen and (max-width: 768px) {
+    .fiad-ruta-card {
+        top: auto;
+        left: 50%;
+        right: auto;
+        bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+        transform: translateX(-50%);
+        width: min(100vw - 20px, 460px);
+        max-width: none;
+        padding: 10px 12px;
+        gap: 7px;
+        border-radius: 16px;
+        animation: fiadRutaSlideUp 0.22s ease-out;
+    }
+
+    @keyframes fiadRutaSlideUp {
+        from {
+            opacity: 0;
+            transform: translate(-50%, 18px);
+        }
+        to {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+    }
+
+    .fiad-ruta-toggle-btn {
+        display: inline-flex;
+    }
+
+    .fiad-ruta-tiempo {
+        font-size: 1.08rem;
+    }
+
+    /* Estado minimizado en móvil: 1 sola fila ultracompacta para ver todo el mapa */
+    .fiad-ruta-card.is-minimized {
+        padding: 8px 11px;
+        gap: 0;
+    }
+
+    .fiad-ruta-card.is-minimized .fiad-ruta-metricas,
+    .fiad-ruta-card.is-minimized .fiad-ruta-desglose,
+    .fiad-ruta-card.is-minimized .fiad-ruta-aviso,
+    .fiad-ruta-card.is-minimized .fiad-ruta-alternativas {
+        display: none !important;
+    }
+}
