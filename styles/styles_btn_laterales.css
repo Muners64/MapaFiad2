@@ -117,3 +117,13 @@
         height: 50px;
     }
 }
+
+/* Ocultar el cuadro por defecto de Leaflet Routing Machine */
+.leaflet-routing-container {
+    display: none !important;
+}
+
+/* Si además no usas controles nativos de Leaflet en la esquina superior derecha */
+.leaflet-top.leaflet-right .leaflet-control {
+    display: none !important;
+}
