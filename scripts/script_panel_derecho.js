@@ -196,6 +196,14 @@ function formatearTelefonoExtension(telefono, extension) {
     return '';
 }
 
+function formatearNombrePiso(nivelPiso, esPlantaBaja, mayusculas) {
+    if (esPlantaBaja) {
+        return mayusculas ? 'PLANTA BAJA' : 'Planta Baja';
+    }
+    var numeroPiso = Number(nivelPiso);
+    return mayusculas ? ('PISO ' + numeroPiso) : ('Piso ' + numeroPiso);
+}
+
 function obtenerAlturaViewport() {
     if (window.visualViewport && typeof window.visualViewport.height === 'number') {
         return window.visualViewport.height;
@@ -626,7 +634,10 @@ function construirUrlApi(path) {
 function agruparEspaciosPorPiso(espacios) {
     var porPiso = {};
     (espacios || []).forEach(function (esp) {
-        var piso = (esp.nivel_piso !== null && esp.nivel_piso !== undefined) ? esp.nivel_piso : 0;
+        var raw = Number(esp.nivel_piso);
+        var piso = (esp.nivel_piso !== null && esp.nivel_piso !== undefined && String(esp.nivel_piso).trim() !== '' && Number.isFinite(raw))
+            ? raw
+            : 1;
         if (!porPiso[piso]) porPiso[piso] = [];
         porPiso[piso].push(esp);
     });
@@ -658,13 +669,13 @@ function renderizarSalonesDesdeEspacios(espacios) {
     var porPiso = agruparEspaciosPorPiso(espacios);
     var pisos = Object.keys(porPiso).sort(function (a, b) { return Number(a) - Number(b); });
 
-    pisos.forEach(function (piso) {
+    pisos.forEach(function (piso, index) {
         var pisoDiv = document.createElement('div');
         pisoDiv.className = 'salon-piso';
 
         var pisoHeader = document.createElement('h3');
         pisoHeader.className = 'salon-piso-titulo';
-        pisoHeader.textContent = Number(piso) === 0 ? 'PLANTA BAJA' : ('PISO ' + piso);
+        pisoHeader.textContent = formatearNombrePiso(piso, index === 0, true);
         pisoDiv.appendChild(pisoHeader);
 
         porPiso[piso].forEach(function (esp) {
@@ -1119,24 +1130,16 @@ function mostrarCubiculos(cubiculos) {
     var cubiculosList = document.getElementById('cubiculosList');
     cubiculosList.innerHTML = '';
 
-    var cubiculosPorPiso = {};
-    cubiculos.forEach(function (cubiculo) {
-        var piso = cubiculo.nivel_piso || 0;
-        if (!cubiculosPorPiso[piso]) {
-            cubiculosPorPiso[piso] = [];
-        }
-        cubiculosPorPiso[piso].push(cubiculo);
-    });
+    var cubiculosPorPiso = agruparEspaciosPorPiso(cubiculos);
+    var pisos = Object.keys(cubiculosPorPiso).sort(function (a, b) { return Number(a) - Number(b); });
 
-    var pisos = Object.keys(cubiculosPorPiso).sort(function (a, b) { return a - b; });
-
-    pisos.forEach(function (piso) {
+    pisos.forEach(function (piso, index) {
         var pisoDiv = document.createElement('div');
         pisoDiv.className = 'cubiculo-piso';
 
         var pisoHeader = document.createElement('h3');
         pisoHeader.className = 'cubiculo-piso-titulo';
-        pisoHeader.textContent = piso == 0 ? 'Planta Baja' : ('Piso ' + piso);
+        pisoHeader.textContent = formatearNombrePiso(piso, index === 0, false);
         pisoDiv.appendChild(pisoHeader);
 
         cubiculosPorPiso[piso].forEach(function (cubiculo) {
