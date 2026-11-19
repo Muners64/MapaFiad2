@@ -1,6 +1,7 @@
 (function () {
   const STORAGE_KEY_POI = 'fiad_map_poi_config';
   const STORAGE_KEY_UI = 'fiad_map_ui_config';
+  let vistaInicialUniversidad = null;
 
   const SVG_BANOS_FALLBACK =
     '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
@@ -9,6 +10,41 @@
       '<circle cx="17" cy="4.5" r="2"/>' +
       '<path d="M15.2 7h3.6c.65 0 1.22.42 1.42 1.04L21.5 13h-2.3v7h-4.4v-7h-2.3l1.28-4.96A1.5 1.5 0 0 1 15.2 7z"/>' +
     '</svg>';
+
+  function capturarVistaInicialUniversidad() {
+    if (vistaInicialUniversidad) return true;
+    if (typeof map !== 'undefined' && map && typeof map.getCenter === 'function' && typeof map.getZoom === 'function') {
+      try {
+        const centro = map.getCenter();
+        const zoom = map.getZoom();
+        if (centro && typeof centro.lat === 'number' && typeof centro.lng === 'number' && typeof zoom === 'number') {
+          vistaInicialUniversidad = {
+            lat: centro.lat,
+            lng: centro.lng,
+            zoom: zoom
+          };
+          return true;
+        }
+      } catch (e) {}
+    }
+    return false;
+  }
+
+  function centrarEnUniversidad() {
+    if (!vistaInicialUniversidad) {
+      capturarVistaInicialUniversidad();
+    }
+    if (typeof map !== 'undefined' && map && vistaInicialUniversidad) {
+      if (window.UbicacionCampus && typeof window.UbicacionCampus.cancelarPrimerCentrado === 'function') {
+        window.UbicacionCampus.cancelarPrimerCentrado();
+      }
+      map.setView(
+        [vistaInicialUniversidad.lat, vistaInicialUniversidad.lng],
+        vistaInicialUniversidad.zoom,
+        { animate: true }
+      );
+    }
+  }
 
   function obtenerCategoriasPOI() {
     if (window.PuntosInteresCampus && typeof window.PuntosInteresCampus.obtenerCategoriasLista === 'function') {
@@ -48,6 +84,7 @@
   function cargarConfigUI() {
     const inicial = {
       rutaAccesible: false,
+      mostrarCentrarUniversidad: true,
       mostrarCapas: true,
       mostrarEscala: true
     };
@@ -67,6 +104,11 @@
   }
 
   function aplicarVisibilidadControles(uiConfig) {
+    const btnCentrar = document.getElementById('btn-centrar-universidad');
+    if (btnCentrar) {
+      btnCentrar.style.display = uiConfig.mostrarCentrarUniversidad !== false ? '' : 'none';
+    }
+
     const btnCapas = document.getElementById('btn_capas');
     if (btnCapas) {
       btnCapas.style.display = uiConfig.mostrarCapas ? '' : 'none';
@@ -98,7 +140,23 @@
     return `<ion-icon name="${cat.icon}"></ion-icon>`;
   }
 
-  function crearHTMLConfiguracion(categorias, poiConfig, uiConfig) {
+  function crearHTMLBotonCentrar() {
+    return `
+      <button type="button" id="btn-centrar-universidad" class="lateral-btn" aria-label="Centrar en la universidad" title="Centrar en la universidad">
+        <ion-icon name="compass-outline"></ion-icon>
+      </button>
+    `;
+  }
+
+  function crearHTMLBotonConfig() {
+    return `
+      <button type="button" id="btn-config-mapa" class="lateral-btn" aria-label="Configuración del mapa" title="Configuración del mapa">
+        <ion-icon name="settings-outline"></ion-icon>
+      </button>
+    `;
+  }
+
+  function crearHTMLPanelConfiguracion(categorias, poiConfig, uiConfig) {
     const itemsPOIHTML = categorias.map((cat) => `
       <label class="config-poi-item">
         <span class="config-poi-label">
@@ -120,10 +178,6 @@
     `;
 
     return `
-      <button type="button" id="btn-config-mapa" class="lateral-btn" aria-label="Configuración del mapa" title="Configuración del mapa">
-        <ion-icon name="settings-outline"></ion-icon>
-      </button>
-
       <div id="panel-config-mapa" class="config-popover" aria-hidden="true">
         <div class="config-popover-header">
           <span>Configuración</span>
@@ -146,6 +200,13 @@
 
           <div class="config-section-divider"></div>
           <div class="config-section-title">Controles del mapa</div>
+          <label class="config-poi-item">
+            <span class="config-poi-label">
+              <ion-icon name="compass-outline"></ion-icon>
+              <span>Botón centrar campus</span>
+            </span>
+            <input type="checkbox" data-ui-id="mostrarCentrarUniversidad" ${uiConfig.mostrarCentrarUniversidad !== false ? 'checked' : ''}>
+          </label>
           <label class="config-poi-item">
             <span class="config-poi-label">
               <ion-icon name="layers-outline"></ion-icon>
@@ -173,15 +234,44 @@
   }
 
   function inicializarConfiguracion() {
+    if (!capturarVistaInicialUniversidad()) {
+      let intentos = 0;
+      const timerVista = setInterval(() => {
+        intentos++;
+        if (capturarVistaInicialUniversidad() || intentos >= 50) {
+          clearInterval(timerVista);
+        }
+      }, 20);
+    }
+
     const contenedor = document.querySelector('.botones_laterales') || document.body;
     const categorias = obtenerCategoriasPOI();
     const poiConfig = cargarConfigPOI(categorias);
     const uiConfig = cargarConfigUI();
 
-    if (!document.getElementById('btn-config-mapa')) {
-      contenedor.insertAdjacentHTML('beforeend', crearHTMLConfiguracion(categorias, poiConfig, uiConfig));
+    if (!document.getElementById('btn-centrar-universidad')) {
+      const btnUbicacion = document.getElementById('btn-toggle-ubicacion');
+      if (btnUbicacion) {
+        btnUbicacion.insertAdjacentHTML('afterend', crearHTMLBotonCentrar());
+      } else {
+        contenedor.insertAdjacentHTML('afterbegin', crearHTMLBotonCentrar());
+      }
     }
 
+    if (!document.getElementById('btn-config-mapa')) {
+      contenedor.insertAdjacentHTML('beforeend', crearHTMLBotonConfig());
+    }
+
+    if (!document.getElementById('panel-config-mapa')) {
+      const btnCfgActual = document.getElementById('btn-config-mapa');
+      if (btnCfgActual) {
+        btnCfgActual.insertAdjacentHTML('afterend', crearHTMLPanelConfiguracion(categorias, poiConfig, uiConfig));
+      } else {
+        contenedor.insertAdjacentHTML('beforeend', crearHTMLPanelConfiguracion(categorias, poiConfig, uiConfig));
+      }
+    }
+
+    const btnCentrar = document.getElementById('btn-centrar-universidad');
     const btnConfig = document.getElementById('btn-config-mapa');
     const panelConfig = document.getElementById('panel-config-mapa');
     const btnCerrar = document.getElementById('btn-cerrar-config');
@@ -196,6 +286,14 @@
       panelConfig.classList.toggle('is-open', abrir);
       panelConfig.setAttribute('aria-hidden', String(!abrir));
       btnConfig.classList.toggle('is-active', abrir);
+    }
+
+    if (btnCentrar) {
+      btnCentrar.addEventListener('click', (e) => {
+        e.stopPropagation();
+        togglePanel(false);
+        centrarEnUniversidad();
+      });
     }
 
     btnConfig.addEventListener('click', (e) => {

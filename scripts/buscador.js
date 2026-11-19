@@ -1,25 +1,51 @@
-// BUSCADOR GLOBAL (Edificios, Laboratorios, Cubículos y Profesores)
-// Verificar que los datos esten cargados
+// BUSCADOR GLOBAL CON ÍNDICE TOKENIZADO EN MEMORIA
+// Cubre: Edificios, Aulas, Laboratorios, Talleres, Cubículos, Profesores y Puntos de Interés
+
 if (typeof edificios_sugerido === 'undefined') {
-    console.warn('edificios_sugerido aún no está disponible. Esperando carga desde API...');
-    var edificios_sugerido = []; 
+    var edificios_sugerido = [];
 }
 
 if (typeof edificios === 'undefined') {
     var edificios = [];
 }
 
-
+const STORAGE_KEY_CATALOGO_TS = 'fiad_catalogo_busqueda_ts';
 const searchContainer = document.querySelector('.search-input-box');
 const inputSearch = searchContainer.querySelector('input');
 const boxSuggestions = document.querySelector('.container-suggestions');
 
-let busquedaTimer = null;
-let tokenBusqueda = 0;
+let indiceDocumentos = [];
+let catalogoCargado = false;
+let promesaCargaCatalogo = null;
 let resultadosBusqueda = [];
+let currentIndex = -1;
 
-// Seguridad y la validacion de las entradas
-// Sanitiza  el texto
+const CATEGORIAS_POI_META = {
+    banos: {
+        label: 'Baños',
+        sinonimos: 'banos sanitarios wc bano hombres mujeres'
+    },
+    biblioteca: {
+        label: 'Biblioteca',
+        sinonimos: 'biblioteca libros estudio lectura'
+    },
+    canchas: {
+        label: 'Canchas deportivas',
+        sinonimos: 'canchas deportivas deporte futbol basquetbol voleibol'
+    },
+    estacionamiento: {
+        label: 'Estacionamientos',
+        sinonimos: 'estacionamiento estacionamientos parking carros autos vehiculos'
+    },
+    cafeteria: {
+        label: 'Cafetería',
+        sinonimos: 'cafeteria cafeta cafe comida desayunos'
+    },
+    tienda: {
+        label: 'Tienda',
+        sinonimos: 'tienda papeleria copias impresiones'
+    }
+};
 
 function sanitizeHTML(text) {
     const div = document.createElement('div');
@@ -27,59 +53,412 @@ function sanitizeHTML(text) {
     return div.innerHTML;
 }
 
-
-// Valida que el input contenga solo caracteres permitidos
-
 function validarInput(input) {
-    const regex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s\-.]+$/;
+    const regex = /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ0-9\s\-._/()]+$/;
     return regex.test(input) && input.length <= 100;
 }
 
+function quitarAcentos(texto) {
+    return String(texto || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+}
+
 function normalizarBusqueda(texto) {
-    return String(texto || '')
-        .toLowerCase()
-        .replace(/[\s.-]+/g, '');
+    return quitarAcentos(texto).replace(/[\s.\-_]+/g, '');
 }
 
-function normalizarEtiqueta(texto) {
-    return String(texto || '')
-        .toLowerCase()
-        .replace(/[\s._-]+/g, ' ')
-        .trim();
+function tokenizarTexto(texto, expandirAlfanumericos = true) {
+    const limpio = quitarAcentos(texto).replace(/[^a-z0-9]+/g, ' ').trim();
+    if (!limpio) return [];
+
+    const base = limpio.split(/\s+/);
+    const set = new Set(base);
+
+    if (expandirAlfanumericos) {
+        base.forEach((tok) => {
+            const partes = tok.match(/[a-z]+|[0-9]+/g);
+            if (partes && partes.length > 1) {
+                partes.forEach((p) => set.add(p));
+            }
+        });
+    }
+
+    return Array.from(set);
 }
 
-function construirUrlApiEspaciosBuscar(termino) {
-    var basePath = window.location.pathname.replace(/\/[^\/]*$/, '');
-    return window.location.origin + basePath + '/api/espacios.php?buscar=' + encodeURIComponent(termino) + '&limit=20';
+function distanciaLevenshteinAcotada(a, b, maxDist) {
+    const lenA = a.length;
+    const lenB = b.length;
+    if (Math.abs(lenA - lenB) > maxDist) return maxDist + 1;
+
+    const prev = new Array(lenB + 1);
+    const curr = new Array(lenB + 1);
+    for (let j = 0; j <= lenB; j++) prev[j] = j;
+
+    for (let i = 1; i <= lenA; i++) {
+        curr[0] = i;
+        let minFila = curr[0];
+        const charA = a.charCodeAt(i - 1);
+
+        for (let j = 1; j <= lenB; j++) {
+            const cost = charA === b.charCodeAt(j - 1) ? 0 : 1;
+            const val = Math.min(
+                prev[j] + 1,
+                curr[j - 1] + 1,
+                prev[j - 1] + cost
+            );
+            curr[j] = val;
+            if (val < minFila) minFila = val;
+        }
+
+        if (minFila > maxDist) return maxDist + 1;
+        for (let j = 0; j <= lenB; j++) prev[j] = curr[j];
+    }
+
+    return prev[lenB];
 }
 
-function construirUrlApiProfesoresBuscar(termino) {
-    var basePath = window.location.pathname.replace(/\/[^\/]*$/, '');
-    return window.location.origin + basePath + '/api/profesores.php?buscar=' + encodeURIComponent(termino) + '&con_oficina=1&limit=20';
+function construirUrlCatalogoBusqueda(forzar) {
+    const basePath = window.location.pathname.replace(/\/[^\/]*$/, '');
+    const url = window.location.origin + basePath + '/api/catalogo_busqueda.php';
+
+    let marcaTiempo = '';
+    if (forzar) {
+        marcaTiempo = String(Date.now());
+        try {
+            localStorage.setItem(STORAGE_KEY_CATALOGO_TS, marcaTiempo);
+        } catch (e) {}
+    } else {
+        try {
+            marcaTiempo = localStorage.getItem(STORAGE_KEY_CATALOGO_TS) || '';
+        } catch (e) {}
+    }
+
+    return marcaTiempo ? (url + '?_t=' + encodeURIComponent(marcaTiempo)) : url;
+}
+
+function construirDocumentoIndice(doc) {
+    const tokensPrimarios = tokenizarTexto(doc.textoPrimario, true);
+    const tokensSecundarios = tokenizarTexto(doc.textoSecundario, true);
+    const todosTokens = Array.from(new Set([...tokensPrimarios, ...tokensSecundarios]));
+
+    return Object.assign({}, doc, {
+        tokensPrimarios,
+        tokensSecundarios,
+        todosTokens,
+        claveCompacta: normalizarBusqueda(doc.textoPrimario + ' ' + (doc.codigo || ''))
+    });
+}
+
+function construirIndiceDesdeDatos(data) {
+    const docs = [];
+
+    // 1. Edificios
+    if (Array.isArray(data.edificios)) {
+        data.edificios.forEach((ed) => {
+            const lat = parseFloat(ed.latitud);
+            const lng = parseFloat(ed.longitud);
+            if (isNaN(lat) || isNaN(lng)) return;
+
+            const codigo = String(ed.codigo || '').trim();
+            const nombre = String(ed.nombre_comun || codigo).trim();
+
+            const numEdificio = codigo.replace(/^E/i, '');
+            const extraEdificio = numEdificio && numEdificio !== codigo
+                ? `edificio ${numEdificio} edif ${numEdificio}`
+                : 'edificio';
+
+            docs.push(construirDocumentoIndice({
+                tipo_resultado: 'edificio',
+                nombre: nombre,
+                subtitulo: codigo,
+                coordenadas: [lat, lng],
+                codigo: codigo,
+                prioridadBase: 25,
+                textoPrimario: `${codigo} ${nombre}`,
+                textoSecundario: `${extraEdificio} ${ed.descripcion || ''}`
+            }));
+        });
+    }
+
+    // 2. Espacios (Aulas, Laboratorios, Talleres, Cubículos)
+    if (Array.isArray(data.espacios)) {
+        data.espacios.forEach((esp) => {
+            const lat = parseFloat(esp.lat_edificio);
+            const lng = parseFloat(esp.lng_edificio);
+            if (isNaN(lat) || isNaN(lng)) return;
+
+            const idTipo = Number(esp.id_tipo);
+            const nombreTipoRaw = quitarAcentos(esp.nombre_tipo || '');
+
+            let tipoResultado = 'aula';
+            let sinonimosTipo = 'aula salon clase';
+            let prioridadBase = 16;
+
+            if (idTipo === 2 || nombreTipoRaw.includes('laboratorio')) {
+                tipoResultado = 'laboratorio';
+                sinonimosTipo = 'laboratorio lab practica';
+                prioridadBase = 20;
+            } else if (idTipo === 3 || nombreTipoRaw.includes('taller')) {
+                tipoResultado = 'taller';
+                sinonimosTipo = 'taller';
+                prioridadBase = 18;
+            } else if (idTipo === 4 || nombreTipoRaw.includes('cubiculo')) {
+                tipoResultado = 'cubiculo';
+                sinonimosTipo = 'cubiculo oficina asesorias';
+                prioridadBase = 14;
+            }
+
+            const numEspacio = String(esp.numero_espacio || '').trim();
+            const codCompleto = String(esp.codigo_completo || '').trim();
+            const nomDesc = String(esp.nombre_descriptivo || '').trim();
+            const codEdif = String(esp.codigo_edificio || '').trim();
+            const nomEdif = String(esp.nombre_edificio || codEdif).trim();
+            const profe = String(esp.profesor_asignado || '').trim();
+
+            const nombreMostrar = nomDesc || numEspacio || codCompleto || esp.nombre_tipo || 'Espacio';
+            let subtitulo = nomEdif !== codEdif ? `${nomEdif} (${codEdif})` : codEdif;
+            if (tipoResultado === 'cubiculo' && profe) {
+                subtitulo += ` · ${profe}`;
+            }
+
+            docs.push(construirDocumentoIndice({
+                tipo_resultado: tipoResultado,
+                nombre: nombreMostrar,
+                subtitulo: subtitulo,
+                coordenadas: [lat, lng],
+                codigo: codEdif,
+                codigo_espacio: codCompleto || numEspacio,
+                profesor_asignado: profe,
+                prioridadBase: prioridadBase,
+                textoPrimario: `${nombreMostrar} ${numEspacio} ${codCompleto} ${codEdif}`,
+                textoSecundario: `${sinonimosTipo} ${nomEdif} ${profe}`
+            }));
+        });
+    }
+
+    // 3. Profesores activos con cubículo
+    if (Array.isArray(data.profesores)) {
+        data.profesores.forEach((prof) => {
+            const lat = parseFloat(prof.lat_edificio);
+            const lng = parseFloat(prof.lng_edificio);
+            if (isNaN(lat) || isNaN(lng) || !prof.codigo_edificio) return;
+
+            const nombreProf = String(prof.nombre_completo || '').trim();
+            const tituloProf = String(prof.titulo || '').trim();
+            const codOficina = String(prof.codigo_oficina || prof.numero_oficina || '').trim();
+            const codEdif = String(prof.codigo_edificio || '').trim();
+            const nomEdif = String(prof.nombre_edificio || codEdif).trim();
+
+            const subtitulo = [
+                codOficina ? `Cubículo ${codOficina}` : '',
+                nomEdif !== codEdif ? `${nomEdif} (${codEdif})` : codEdif
+            ].filter(Boolean).join(' · ');
+
+            docs.push(construirDocumentoIndice({
+                tipo_resultado: 'profesor',
+                nombre: nombreProf,
+                subtitulo: subtitulo,
+                coordenadas: [lat, lng],
+                codigo: codEdif,
+                codigo_espacio: codOficina,
+                profesor_asignado: nombreProf,
+                prioridadBase: 17,
+                textoPrimario: `${nombreProf} ${tituloProf}`,
+                textoSecundario: `profesor profesora docente maestro maestra cubiculo ${codOficina} ${codEdif} ${nomEdif}`
+            }));
+        });
+    }
+
+    // 4. Puntos de interés
+    if (Array.isArray(data.puntos_interes)) {
+        data.puntos_interes.forEach((poi) => {
+            const lat = parseFloat(poi.lat);
+            const lng = parseFloat(poi.lng);
+            if (isNaN(lat) || isNaN(lng)) return;
+
+            const cat = String(poi.categoria || 'banos');
+            const meta = CATEGORIAS_POI_META[cat] || { label: 'Punto de interés', sinonimos: cat };
+            const nombreRaw = String(poi.nombre || '').trim();
+            const descRaw = String(poi.descripcion || '').trim();
+            const tieneNombrePropio = nombreRaw !== '' && quitarAcentos(nombreRaw) !== quitarAcentos(meta.label);
+
+            const nombreMostrar = tieneNombrePropio ? nombreRaw : meta.label;
+            const subtitulo = tieneNombrePropio
+                ? (descRaw ? `${meta.label} · ${descRaw}` : meta.label)
+                : descRaw;
+
+            docs.push(construirDocumentoIndice({
+                tipo_resultado: 'poi',
+                poi_id: String(poi.id || ''),
+                categoria_label: meta.label,
+                nombre: nombreMostrar,
+                subtitulo: subtitulo,
+                coordenadas: [lat, lng],
+                prioridadBase: 19,
+                textoPrimario: `${nombreMostrar} ${meta.label}`,
+                textoSecundario: `${meta.sinonimos} ${descRaw}`
+            }));
+        });
+    }
+
+    indiceDocumentos = docs;
+    catalogoCargado = true;
+}
+
+function construirIndiceDesdeRespaldoLocal() {
+    if (!Array.isArray(edificios_sugerido) || edificios_sugerido.length === 0) return;
+    indiceDocumentos = edificios_sugerido.map((ed) => construirDocumentoIndice({
+        tipo_resultado: 'edificio',
+        nombre: ed.nombre,
+        subtitulo: ed.codigo || '',
+        coordenadas: ed.coordenadas,
+        codigo: ed.codigo || '',
+        prioridadBase: 25,
+        textoPrimario: `${ed.codigo || ''} ${ed.nombre || ''}`,
+        textoSecundario: 'edificio'
+    }));
+}
+
+async function cargarCatalogoBusqueda(forzar = false) {
+    if (catalogoCargado && !forzar) return;
+    if (promesaCargaCatalogo && !forzar) return promesaCargaCatalogo;
+
+    promesaCargaCatalogo = (async () => {
+        try {
+            const res = await fetch(construirUrlCatalogoBusqueda(forzar), {
+                cache: forzar ? 'reload' : 'no-cache'
+            });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            if (data && data.success) {
+                construirIndiceDesdeDatos(data);
+            } else {
+                construirIndiceDesdeRespaldoLocal();
+            }
+        } catch (err) {
+            console.warn('[Buscador] Error cargando catálogo unificado, usando respaldo local:', err);
+            construirIndiceDesdeRespaldoLocal();
+        } finally {
+            promesaCargaCatalogo = null;
+        }
+    })();
+
+    return promesaCargaCatalogo;
+}
+
+window.recargarCatalogoBusqueda = function () {
+    catalogoCargado = false;
+    return cargarCatalogoBusqueda(true);
+};
+
+function buscarEnIndiceLocal(consultaRaw) {
+    if (indiceDocumentos.length === 0) {
+        construirIndiceDesdeRespaldoLocal();
+    }
+
+    const tokensConsulta = tokenizarTexto(consultaRaw, false);
+    if (tokensConsulta.length === 0) return [];
+
+    const consultaCompacta = normalizarBusqueda(consultaRaw);
+    const coincidencias = [];
+
+    for (let i = 0; i < indiceDocumentos.length; i++) {
+        const doc = indiceDocumentos[i];
+        let puntajeTotal = 0;
+        let todosCoinciden = true;
+
+        for (let t = 0; t < tokensConsulta.length; t++) {
+            const qTok = tokensConsulta[t];
+            let mejorPuntajeToken = 0;
+
+            for (let j = 0; j < doc.tokensPrimarios.length; j++) {
+                const dTok = doc.tokensPrimarios[j];
+                if (dTok === qTok) {
+                    mejorPuntajeToken = Math.max(mejorPuntajeToken, 70);
+                    break;
+                } else if (dTok.startsWith(qTok)) {
+                    mejorPuntajeToken = Math.max(mejorPuntajeToken, 50);
+                } else if (qTok.length >= 3 && dTok.includes(qTok)) {
+                    mejorPuntajeToken = Math.max(mejorPuntajeToken, 32);
+                } else if (qTok.length >= 4 && Math.abs(dTok.length - qTok.length) <= 1) {
+                    if (distanciaLevenshteinAcotada(qTok, dTok, 1) === 1) {
+                        mejorPuntajeToken = Math.max(mejorPuntajeToken, 20);
+                    }
+                }
+            }
+
+            if (mejorPuntajeToken < 70) {
+                for (let j = 0; j < doc.tokensSecundarios.length; j++) {
+                    const dTok = doc.tokensSecundarios[j];
+                    if (dTok === qTok) {
+                        mejorPuntajeToken = Math.max(mejorPuntajeToken, 42);
+                        break;
+                    } else if (dTok.startsWith(qTok)) {
+                        mejorPuntajeToken = Math.max(mejorPuntajeToken, 28);
+                    } else if (qTok.length >= 3 && dTok.includes(qTok)) {
+                        mejorPuntajeToken = Math.max(mejorPuntajeToken, 18);
+                    } else if (qTok.length >= 4 && Math.abs(dTok.length - qTok.length) <= 1) {
+                        if (distanciaLevenshteinAcotada(qTok, dTok, 1) === 1) {
+                            mejorPuntajeToken = Math.max(mejorPuntajeToken, 12);
+                        }
+                    }
+                }
+            }
+
+            if (mejorPuntajeToken === 0) {
+                todosCoinciden = false;
+                break;
+            }
+
+            puntajeTotal += mejorPuntajeToken;
+        }
+
+        if (!todosCoinciden) continue;
+
+        if (doc.claveCompacta === consultaCompacta) {
+            puntajeTotal += 120;
+        } else if (consultaCompacta.length >= 2 && doc.claveCompacta.startsWith(consultaCompacta)) {
+            puntajeTotal += 45;
+        }
+
+        puntajeTotal += (doc.prioridadBase || 0);
+        coincidencias.push({ doc, score: puntajeTotal });
+    }
+
+    coincidencias.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return a.doc.nombre.localeCompare(b.doc.nombre, 'es');
+    });
+
+    return coincidencias.slice(0, 20).map((c) => c.doc);
 }
 
 function etiquetaTipoResultado(item) {
     if (item.tipo_resultado === 'laboratorio') return 'Laboratorio';
+    if (item.tipo_resultado === 'aula') return 'Aula';
+    if (item.tipo_resultado === 'taller') return 'Taller';
     if (item.tipo_resultado === 'cubiculo') return 'Cubículo';
     if (item.tipo_resultado === 'profesor') return 'Profesor';
+    if (item.tipo_resultado === 'poi') return item.categoria_label || 'Punto de interés';
     return 'Edificio';
 }
 
 function construirItemSugerencia(item, index) {
-    var tipo = etiquetaTipoResultado(item);
-    var subtituloText = item.subtitulo ? String(item.subtitulo) : '';
-    var subtitulo = subtituloText ? '<div class="sugerencia-linea-secundaria">' + sanitizeHTML(subtituloText) + '</div>' : '';
+    const tipo = etiquetaTipoResultado(item);
+    const subtituloText = item.subtitulo ? String(item.subtitulo) : '';
+    let subtitulo = subtituloText
+        ? '<div class="sugerencia-linea-secundaria">' + sanitizeHTML(subtituloText) + '</div>'
+        : '';
 
-    // Evitar duplicar la palabra del tipo en el nombre
-    var displayName = String(item.nombre || '');
+    let displayName = String(item.nombre || '');
     try {
-        var tipoRegex = new RegExp('^' + tipo + '\\s+', 'i');
+        const tipoRegex = new RegExp('^' + tipo + '\\s+', 'i');
         displayName = displayName.replace(tipoRegex, '');
-    } catch (e) {
-        // si hay error en regex, usar nombre tal cual
-    }
+    } catch (e) {}
 
-    // Si el subtitulo ya está incluido en el nombre, no mostrarlo repetido
     if (subtituloText && displayName.toLowerCase().indexOf(subtituloText.toLowerCase()) !== -1) {
         subtitulo = '';
     }
@@ -90,12 +469,35 @@ function construirItemSugerencia(item, index) {
         '</li>';
 }
 
-///////////////////////////////////
+async function actualizarSugerenciasEnVivo(userData) {
+    if (!catalogoCargado) {
+        await cargarCatalogoBusqueda(false);
+    }
 
-inputSearch.onkeyup = e => {
-    const userData = e.target.value.toLowerCase().trim();
+    const sugerencias = buscarEnIndiceLocal(userData);
+    resultadosBusqueda = sugerencias;
+    currentIndex = -1;
 
-    // Validar entrada
+    const items = sugerencias.map((resultado, index) => construirItemSugerencia(resultado, index));
+    searchContainer.classList.add('active');
+    showSuggestions(items);
+
+    const allList = boxSuggestions.querySelectorAll('li');
+    allList.forEach((li, index) => {
+        if (!li.hasAttribute('data-index')) return;
+        li.addEventListener('click', function () {
+            selectSearchResult(index);
+        });
+        li.addEventListener('mouseover', () => { currentIndex = index; });
+        li.addEventListener('mouseleave', () => { currentIndex = -1; });
+    });
+
+    updateSuggestionsHighlight(allList);
+}
+
+function manejarCambioInputBusqueda() {
+    const userData = inputSearch.value.trim();
+
     if (userData && !validarInput(userData)) {
         boxSuggestions.innerHTML = '<li>Caracteres no permitidos</li>';
         searchContainer.classList.add('active');
@@ -103,292 +505,103 @@ inputSearch.onkeyup = e => {
     }
 
     if (userData) {
-        if (busquedaTimer) {
-            clearTimeout(busquedaTimer);
-        }
-
-        busquedaTimer = setTimeout(async () => {
-            const tokenActual = ++tokenBusqueda;
-            const sugerencias = await obtenerSugerenciasDesdeAPI(userData);
-            if (tokenActual !== tokenBusqueda) return;
-
-            resultadosBusqueda = sugerencias;
-            const items = sugerencias.map((resultado, index) => construirItemSugerencia(resultado, index));
-
-            searchContainer.classList.add('active');
-            showSuggestions(items);
-
-            let allList = boxSuggestions.querySelectorAll('li');
-            allList.forEach((li, index) => {
-                li.addEventListener('click', function () {
-                    selectSearchResult(index);
-                });
-                li.addEventListener('mouseover', () => currentIndex = index);
-                li.addEventListener('mouseleave', () => currentIndex = -1);
-            });
-
-            updateSuggestionsHighlight(allList);
-        }, 220);
+        actualizarSugerenciasEnVivo(userData);
     } else {
+        resultadosBusqueda = [];
         searchContainer.classList.remove('active');
     }
+}
+
+inputSearch.addEventListener('focus', () => {
+    if (!catalogoCargado) {
+        cargarCatalogoBusqueda(false);
+    }
+});
+
+inputSearch.addEventListener('input', manejarCambioInputBusqueda);
+
+inputSearch.onkeyup = (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === 'Escape') {
+        return;
+    }
+    manejarCambioInputBusqueda();
 };
 
-function construirUrlApiEdificiosBuscar(termino) {
-    var basePath = window.location.pathname.replace(/\/[^\/]*$/, '');
-    return window.location.origin + basePath + '/api/edificios.php?buscar=' + encodeURIComponent(termino);
-}
-
-async function obtenerSugerenciasDesdeAPI(termino) {
+const showSuggestions = (list) => {
     try {
-        // Detectar prefijos de tipo en la búsqueda
-        var terminoOriginal = String(termino || '').trim();
-        var terminoEspacios = terminoOriginal;
-        var espacioTipoParam = '';
-        var m = terminoOriginal.match(/^(?:lab|laboratorio)\b\s*/i);
-        if (m) {
-            terminoEspacios = terminoOriginal.replace(m[0], '').trim();
-            espacioTipoParam = '&tipo=2';
-        }
-
-        const responses = await Promise.all([
-            fetch(construirUrlApiEdificiosBuscar(termino)).then(r => r.json()).catch(() => ({ success: false, edificios: [] })),
-            fetch(construirUrlApiEspaciosBuscar(terminoEspacios) + espacioTipoParam).then(r => r.json()).catch(() => ({ success: false, espacios: [] })),
-            fetch(construirUrlApiProfesoresBuscar(termino)).then(r => r.json()).catch(() => ({ success: false, profesores: [] }))
-        ]);
-
-        const dataEdificios = responses[0];
-        const dataEspacios = responses[1];
-        const dataProfesores = responses[2];
-
-        const sugerencias = [];
-
-        if (dataEdificios.success && Array.isArray(dataEdificios.edificios)) {
-            dataEdificios.edificios.forEach(edificio => {
-                const lat = parseFloat(edificio.latitud);
-                const lng = parseFloat(edificio.longitud);
-                if (isNaN(lat) || isNaN(lng)) return;
-
-                sugerencias.push({
-                    tipo_resultado: 'edificio',
-                    nombre: edificio.nombre_comun || edificio.codigo,
-                    subtitulo: edificio.codigo || '',
-                    coordenadas: [lat, lng],
-                    codigo: edificio.codigo,
-                    prioridad: 1
-                });
-
-                if (Array.isArray(edificio.alias)) {
-                    edificio.alias.forEach(aliasItem => {
-                        if (!aliasItem) return;
-                        sugerencias.push({
-                            tipo_resultado: 'edificio',
-                            nombre: aliasItem,
-                            subtitulo: (edificio.nombre_comun || edificio.codigo) + ' (' + (edificio.codigo || '') + ')',
-                            coordenadas: [lat, lng],
-                            codigo: edificio.codigo,
-                            prioridad: 2
-                        });
-                    });
-                }
-            });
-        }
-
-        if (dataEspacios.success && Array.isArray(dataEspacios.espacios)) {
-            dataEspacios.espacios.forEach(espacio => {
-                const lat = parseFloat(espacio.lat_edificio);
-                const lng = parseFloat(espacio.lng_edificio);
-                if (isNaN(lat) || isNaN(lng)) return;
-
-                const idTipo = Number(espacio.id_tipo);
-                const tipoResultado = idTipo === 2 ? 'laboratorio' : (idTipo === 4 ? 'cubiculo' : 'espacio');
-                if (tipoResultado === 'espacio') return;
-
-                const nombreBase = tipoResultado === 'laboratorio'
-                    ? (espacio.nombre_descriptivo || espacio.numero_espacio || espacio.codigo_completo || 'Laboratorio')
-                    : (espacio.numero_espacio || espacio.codigo_completo || 'Cubículo');
-
-                let subtitulo = (espacio.nombre_edificio || espacio.codigo_edificio || '');
-                if (tipoResultado === 'cubiculo' && espacio.profesor_asignado) {
-                    subtitulo += ' - ' + espacio.profesor_asignado;
-                }
-
-                sugerencias.push({
-                    tipo_resultado: tipoResultado,
-                    nombre: nombreBase,
-                    subtitulo: subtitulo,
-                    coordenadas: [lat, lng],
-                    codigo: espacio.codigo_edificio,
-                    codigo_espacio: espacio.codigo_completo || espacio.numero_espacio || '',
-                    profesor_asignado: espacio.profesor_asignado || '',
-                    prioridad: tipoResultado === 'laboratorio' ? 3 : 4
-                });
-            });
-        }
-
-        if (dataProfesores.success && Array.isArray(dataProfesores.profesores)) {
-            dataProfesores.profesores.forEach(profesor => {
-                const lat = parseFloat(profesor.lat_edificio);
-                const lng = parseFloat(profesor.lng_edificio);
-                if (isNaN(lat) || isNaN(lng)) return;
-                if (!profesor.codigo_edificio) return;
-
-                sugerencias.push({
-                    tipo_resultado: 'profesor',
-                    nombre: profesor.nombre_completo || 'Profesor',
-                    subtitulo: (profesor.codigo_oficina || 'Cubículo sin código') + ' - ' + (profesor.nombre_edificio || profesor.codigo_edificio),
-                    coordenadas: [lat, lng],
-                    codigo: profesor.codigo_edificio,
-                    codigo_espacio: profesor.codigo_oficina || profesor.numero_oficina || '',
-                    profesor_asignado: profesor.nombre_completo || '',
-                    prioridad: 5
-                });
-            });
-        }
-
-        const seen = {};
-        return sugerencias
-            .filter(function (s) {
-                var key = [
-                    s.tipo_resultado,
-                    normalizarEtiqueta(s.nombre),
-                    normalizarEtiqueta(s.codigo),
-                    normalizarEtiqueta(s.codigo_espacio),
-                    normalizarEtiqueta(s.profesor_asignado)
-                ].join('|');
-
-                if (seen[key]) return false;
-                seen[key] = true;
-                return true;
-            })
-            .sort(function (a, b) {
-                return Number(a.prioridad || 99) - Number(b.prioridad || 99);
-            })
-            .slice(0, 20);
-    } catch (error) {
-        console.warn('No se pudieron obtener sugerencias desde API, usando lista local.', error);
-        return edificios_sugerido
-            .filter(edificio => edificio.nombre.toLowerCase().startsWith(termino))
-            .map(edificio => ({
-                tipo_resultado: 'edificio',
-                nombre: edificio.nombre,
-                subtitulo: edificio.codigo || '',
-                coordenadas: edificio.coordenadas,
-                codigo: edificio.codigo || '',
-                prioridad: 1
-            }));
-    }
-}
-
-const showSuggestions = list => {
-    let listData;
-
-    try {
-        if (!list || list.length === 0) {
-            listData = `<li>No hay resultados</li>`;
-        } else {
-            listData = list.join('');
-        }
+        const listData = (!list || list.length === 0)
+            ? '<li>No hay resultados</li>'
+            : list.join('');
 
         if (boxSuggestions) {
             boxSuggestions.innerHTML = listData;
-        } else {
-            console.error("Elemento boxSuggestions no encontrado");
         }
     } catch (error) {
-        console.error("Error al mostrar sugerencias:", error);
+        console.error('Error al mostrar sugerencias:', error);
         if (boxSuggestions) {
             boxSuggestions.innerHTML = '<li>Error al cargar sugerencias</li>';
         }
     }
 };
 
-
-
-
 const searchButton = searchContainer.querySelector('.search-button');
 
 if (searchButton) {
     searchButton.addEventListener('click', (event) => {
-        try {
-            event.preventDefault();
-            performSearch();
-        } catch (error) {
-            console.error("Error en busqueda:", error);
-            alert("Error al realizar la busqueda. Intenta de nuevo.");
-        }
+        event.preventDefault();
+        performSearch();
     });
-} else {
-    console.warn("Boton de busqueda no encontrado");
 }
 
-function performSearch() {
+async function performSearch() {
     try {
         const selectUserData = inputSearch.value.trim();
+        if (!selectUserData || !validarInput(selectUserData)) return;
+
+        if (!catalogoCargado) {
+            await cargarCatalogoBusqueda(false);
+        }
+
+        if (resultadosBusqueda.length === 0) {
+            resultadosBusqueda = buscarEnIndiceLocal(selectUserData);
+        }
+
         const inputNormalizado = normalizarBusqueda(selectUserData);
-        
-        // Validar entrada antes de buscar
-        //Eliminar alertas
-        if (!selectUserData) {
-            //alert("Por favor, escribe algo para buscar.");
-            return;
-        }
-        
-        if (!validarInput(selectUserData)) {
-            //alert("Entrada invalida. Solo se permiten letras, numeros y espacios.");
-            return;
-        }
-        
-        let selectedResultado = resultadosBusqueda.find(resultado => {
-            const nombre = String(resultado.nombre || '');
-            const codigo = String(resultado.codigo || '');
-            const codigoEspacio = String(resultado.codigo_espacio || '');
-            const profesor = String(resultado.profesor_asignado || '');
+        let selectedResultado = resultadosBusqueda.find((resultado) => {
             return (
-                normalizarBusqueda(nombre) === inputNormalizado ||
-                normalizarBusqueda(codigo) === inputNormalizado ||
-                normalizarBusqueda(codigoEspacio) === inputNormalizado ||
-                normalizarBusqueda(profesor) === inputNormalizado
+                normalizarBusqueda(resultado.nombre) === inputNormalizado ||
+                normalizarBusqueda(resultado.codigo) === inputNormalizado ||
+                normalizarBusqueda(resultado.codigo_espacio) === inputNormalizado ||
+                normalizarBusqueda(resultado.profesor_asignado) === inputNormalizado
             );
         });
 
         if (!selectedResultado && resultadosBusqueda.length > 0) {
-            if (resultadosBusqueda.length === 1) {
-                selectedResultado = resultadosBusqueda[0];
-            } else {
-                alert('Selecciona una sugerencia exacta para evitar abrir un edificio equivocado.');
-                return;
-            }
+            selectedResultado = resultadosBusqueda[0];
         }
-        
-        if (!selectedResultado) {
-            //alert("No se encontraron coincidencias. Intenta con otro término.");
-            return;
-        }
+
+        if (!selectedResultado) return;
 
         ejecutarResultadoBusqueda(selectedResultado);
         inputSearch.value = '';
         inputSearch.dispatchEvent(new Event('input', { bubbles: true }));
-        console.log('Resultado encontrado:', selectedResultado.nombre, selectedResultado.tipo_resultado);
-        
     } catch (error) {
-        console.error("Error en performSearch:", error);
-        alert("Error al buscar. Por favor, intenta de nuevo.");
+        console.error('Error en performSearch:', error);
     }
 }
 
 function obtenerEdificioPorResultado(resultado, inputNormalizado) {
     if (!Array.isArray(edificios) || edificios.length === 0) return null;
 
-    var codigo = resultado && resultado.codigo ? String(resultado.codigo).toUpperCase() : '';
+    const codigo = resultado && resultado.codigo ? String(resultado.codigo).toUpperCase() : '';
     if (codigo) {
-        var porCodigo = edificios.find(function (edificio) {
+        const porCodigo = edificios.find((edificio) => {
             return String(edificio.codigo || '').toUpperCase() === codigo;
         });
         if (porCodigo) return porCodigo;
     }
 
-    return edificios.find(function (edificio) {
+    return edificios.find((edificio) => {
         return normalizarBusqueda(edificio.nombre) === inputNormalizado;
     }) || null;
 }
@@ -397,28 +610,42 @@ function ejecutarResultadoBusqueda(resultado) {
     if (!resultado) return;
 
     if (!resultado.coordenadas || resultado.coordenadas.length < 2) {
-        console.error('Coordenadas invalidas para:', resultado.nombre);
-        alert('Error: El resultado no tiene coordenadas validas.');
+        console.error('Coordenadas inválidas para:', resultado.nombre);
         return;
     }
 
     if (typeof map === 'undefined') {
         console.error('Mapa no inicializado');
-        alert('Error: El mapa no esta listo. Recarga la pagina.');
         return;
     }
 
-    map.setView(resultado.coordenadas, 19.4);
-
     searchContainer.classList.remove('active');
 
+    if (resultado.tipo_resultado === 'poi') {
+        if (typeof cerrarPanelEdificio === 'function') {
+            cerrarPanelEdificio();
+        }
+        map.setView(resultado.coordenadas, 19.4, { animate: true });
+
+        if (window.PuntosInteresCampus && typeof window.PuntosInteresCampus.abrirPorId === 'function' && resultado.poi_id) {
+            window.PuntosInteresCampus.abrirPorId(resultado.poi_id);
+        }
+        return;
+    }
+
+    map.setView(resultado.coordenadas, 19.4, { animate: true });
+
     if (typeof mostrarPanelEdificio === 'function') {
-        var selectedEdificioInfo = obtenerEdificioPorResultado(resultado, normalizarBusqueda(resultado.nombre));
+        const selectedEdificioInfo = obtenerEdificioPorResultado(resultado, normalizarBusqueda(resultado.nombre));
         if (selectedEdificioInfo) {
             mostrarPanelEdificio(selectedEdificioInfo);
 
             if (typeof window.buscarYResaltarEnPanel === 'function') {
-                if (resultado.tipo_resultado === 'laboratorio') {
+                if (
+                    resultado.tipo_resultado === 'laboratorio' ||
+                    resultado.tipo_resultado === 'aula' ||
+                    resultado.tipo_resultado === 'taller'
+                ) {
                     window.buscarYResaltarEnPanel({
                         tab: 'salones',
                         codigo_espacio: resultado.codigo_espacio,
@@ -443,44 +670,31 @@ function ejecutarResultadoBusqueda(resultado) {
     }
 }
 
+if (inputSearch) {
+    inputSearch.addEventListener('keydown', function (e) {
+        const suggestions = boxSuggestions.querySelectorAll('li[data-index]');
 
-let currentIndex = -1;
-
-try {
-    if (inputSearch) {
-        inputSearch.addEventListener('keydown', function (e) {
-            try {
-                const suggestions = boxSuggestions.querySelectorAll('li');
-
-                if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    currentIndex++;
-                    if (currentIndex >= suggestions.length) {
-                        currentIndex = suggestions.length - 1;
-                    }
-                    updateSuggestionsHighlight(suggestions);
-                } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    currentIndex--;
-                    if (currentIndex < -1) {
-                        currentIndex = -1;
-                    }
-                    updateSuggestionsHighlight(suggestions);
-                } else if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (currentIndex > -1 && currentIndex < suggestions.length) {
-                        selectSearchResult(currentIndex);
-                    } else {
-                        performSearch();
-                    }
-                }
-            } catch (error) {
-                console.error("Error en navegacion de sugerencias:", error);
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (suggestions.length === 0) return;
+            currentIndex = (currentIndex + 1) % suggestions.length;
+            updateSuggestionsHighlight(suggestions);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (suggestions.length === 0) return;
+            currentIndex = currentIndex <= 0 ? suggestions.length - 1 : currentIndex - 1;
+            updateSuggestionsHighlight(suggestions);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (currentIndex > -1 && currentIndex < suggestions.length) {
+                selectSearchResult(currentIndex);
+            } else {
+                performSearch();
             }
-        });
-    }
-} catch (error) {
-    console.error("Error al configurar eventos de teclado:", error);
+        } else if (e.key === 'Escape') {
+            searchContainer.classList.remove('active');
+        }
+    });
 }
 
 function updateSuggestionsHighlight(suggestions) {
@@ -492,7 +706,6 @@ function updateSuggestionsHighlight(suggestions) {
     });
 }
 
-
 document.addEventListener('click', function (event) {
     if (!searchContainer.contains(event.target)) {
         searchContainer.classList.remove('active');
@@ -502,14 +715,14 @@ document.addEventListener('click', function (event) {
 function selectBuilding(element) {
     if (!element) return;
 
-    var indexAttr = element.getAttribute('data-index');
-    var index = Number(indexAttr);
+    const indexAttr = element.getAttribute('data-index');
+    const index = Number(indexAttr);
     if (Number.isFinite(index)) {
         selectSearchResult(index);
         return;
     }
 
-    let selectUserData = element.textContent.trim();
+    const selectUserData = element.textContent.trim();
     if (!validarInput(selectUserData)) return;
     inputSearch.value = selectUserData;
     performSearch();
@@ -520,7 +733,14 @@ function selectSearchResult(index) {
         return;
     }
 
-    var selected = resultadosBusqueda[index];
-    inputSearch.value = selected.nombre || '';
+    const selected = resultadosBusqueda[index];
     ejecutarResultadoBusqueda(selected);
+    inputSearch.value = '';
+    inputSearch.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => cargarCatalogoBusqueda(false));
+} else {
+    cargarCatalogoBusqueda(false);
 }

@@ -200,6 +200,9 @@
     window.UbicacionCampus = {
       estaActiva: () => ubicacionActiva,
       obtenerUltimaPosicion: () => ultimaPosEmitida ? { ...ultimaPosEmitida } : null,
+      cancelarPrimerCentrado: () => {
+        primerCentrado = false;
+      },
       centrarEnUsuario: () => {
         if (ultimaPosEmitida && typeof map !== 'undefined') {
           map.setView([ultimaPosEmitida.lat, ultimaPosEmitida.lng], Math.max(map.getZoom(), 18), { animate: true });

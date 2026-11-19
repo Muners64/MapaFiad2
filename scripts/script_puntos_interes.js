@@ -6,6 +6,7 @@
   var API_POI_URL = window.location.origin + _basePath + '/api/puntos_interes.php';
 
   var listaPOIs = [];
+  var marcadoresPorId = {};
   var cargados = false;
   var hayCambiosPendientes = false;
   var capaPOIsMapa = null;
@@ -19,6 +20,11 @@
       '<path d="M4.5 8.5A1.5 1.5 0 0 1 6 7h2a1.5 1.5 0 0 1 1.5 1.5V14H8.2v6H5.8v-6H4.5V8.5z"/>' +
       '<circle cx="17" cy="4.5" r="2"/>' +
       '<path d="M15.2 7h3.6c.65 0 1.22.42 1.42 1.04L21.5 13h-2.3v7h-4.4v-7h-2.3l1.28-4.96A1.5 1.5 0 0 1 15.2 7z"/>' +
+    '</svg>';
+
+  var SVG_FLECHA_RUTA =
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;">' +
+      '<polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>' +
     '</svg>';
 
   var CATALOGO = {
@@ -37,6 +43,23 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  function obtenerOpcionesPopup(esEditor) {
+    var esMovil = window.innerWidth <= 768;
+    var anchoDisp = Math.max(190, window.innerWidth - 96);
+    var maxW = esEditor
+      ? (esMovil ? Math.min(265, anchoDisp) : 290)
+      : (esMovil ? Math.min(250, anchoDisp) : 280);
+
+    return {
+      maxWidth: maxW,
+      minWidth: 180,
+      autoPan: true,
+      keepInView: false,
+      autoPanPaddingTopLeft: L.point(14, esMovil ? 130 : 84),
+      autoPanPaddingBottomRight: L.point(esMovil ? 78 : 82, 24)
+    };
   }
 
   function renderizarIconoHTML(meta, sizePx) {
@@ -64,17 +87,19 @@
     var descRaw = (poi.descripcion || '').trim();
     var tieneNombrePropio = nombreRaw !== '' && nombreRaw.toLowerCase() !== meta.label.toLowerCase();
 
-    var html = '<div style="min-width:175px;font-family:\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;font-size:12.5px;">';
+    var html = '<div class="fiad-poi-popup-card" style="font-family:\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;font-size:12.5px;">';
 
     if (tieneNombrePropio) {
       html +=
-        '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:' + meta.color + ';color:#fff;font-size:11px;font-weight:700;">' +
-          renderizarIconoHTML(meta, 13) + ' ' + escaparHTML(meta.label) +
-        '</span>' +
-        '<div style="font-weight:700;font-size:13.5px;margin-top:5px;color:#1a1a1a;">' + escaparHTML(nombreRaw) + '</div>';
+        '<div style="padding-right:22px;">' +
+          '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:' + meta.color + ';color:#fff;font-size:11px;font-weight:700;">' +
+            renderizarIconoHTML(meta, 13) + ' ' + escaparHTML(meta.label) +
+          '</span>' +
+          '<div style="font-weight:700;font-size:13.5px;margin-top:5px;color:#1a1a1a;line-height:1.25;">' + escaparHTML(nombreRaw) + '</div>' +
+        '</div>';
     } else {
       html +=
-        '<div style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:13.5px;color:#1a1a1a;">' +
+        '<div style="display:flex;align-items:center;gap:6px;padding-right:22px;font-weight:700;font-size:13.5px;color:#1a1a1a;line-height:1.25;">' +
           '<span style="width:22px;height:22px;border-radius:50%;background:' + meta.color + ';color:#fff;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">' +
             renderizarIconoHTML(meta, 13) +
           '</span>' +
@@ -83,13 +108,14 @@
     }
 
     if (descRaw !== '') {
-      html += '<p style="margin:6px 0 0 0;color:#666666;line-height:1.35;">' + escaparHTML(descRaw) + '</p>';
+      html += '<p style="margin:6px 0 0 0;color:#666666;line-height:1.38;word-break:break-word;">' + escaparHTML(descRaw) + '</p>';
     }
 
     html +=
-      '<button onclick="window.irAPuntoInteres(' + poi.lat + ',' + poi.lng + ')" ' +
-        'style="margin-top:8px;width:100%;padding:7px 10px;border-radius:10px;background:#2da832;color:#fff;font-weight:700;border:none;cursor:pointer;font-family:inherit;">' +
-        'Cómo llegar' +
+      '<button type="button" onclick="window.irAPuntoInteres(' + poi.lat + ',' + poi.lng + ')" ' +
+        'style="margin-top:9px;width:100%;padding:8px 12px;border-radius:10px;background:#2da832;color:#fff;font-weight:700;font-size:13px;border:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 2px 8px rgba(45,168,50,0.25);">' +
+        SVG_FLECHA_RUTA +
+        '<span>Cómo llegar</span>' +
       '</button>' +
     '</div>';
 
@@ -119,7 +145,7 @@
         '<button type="button" class="fiad-editor-popup-btn is-primary" onclick="window.PuntosInteresCampus._crearDesdePopup(' + latlng.lat + ',' + latlng.lng + ')">Agregar punto</button>' +
       '</div>';
 
-    L.popup().setLatLng(latlng).setContent(html).openOn(map);
+    L.popup(obtenerOpcionesPopup(true)).setLatLng(latlng).setContent(html).openOn(map);
   }
 
   function abrirFormularioEditarPOI(poi) {
@@ -152,7 +178,7 @@
         '<button type="button" class="fiad-editor-popup-btn is-danger" onclick="window.PuntosInteresCampus._eliminarDesdePopup(\'' + escaparHTML(poi.id) + '\')">Eliminar punto</button>' +
       '</div>';
 
-    L.popup().setLatLng([poi.lat, poi.lng]).setContent(html).openOn(map);
+    L.popup(obtenerOpcionesPopup(true)).setLatLng([poi.lat, poi.lng]).setContent(html).openOn(map);
   }
 
   function renderizar() {
@@ -162,6 +188,7 @@
       map.removeLayer(capaPOIsMapa);
       capaPOIsMapa = null;
     }
+    marcadoresPorId = {};
 
     if (listaPOIs.length === 0) return;
 
@@ -183,6 +210,10 @@
         zIndexOffset: enModoEdicion ? 900 : 750
       }).addTo(capaPOIsMapa);
 
+      if (poi.id) {
+        marcadoresPorId[String(poi.id)] = marker;
+      }
+
       if (esArrastrable) {
         marker.on('dragend', function (ev) {
           var ll = ev.target.getLatLng();
@@ -202,7 +233,7 @@
           abrirFormularioEditarPOI(poi);
           return;
         }
-        L.popup()
+        L.popup(obtenerOpcionesPopup(false))
           .setLatLng([poi.lat, poi.lng])
           .setContent(construirPopupPublico(poi, meta))
           .openOn(map);
@@ -236,6 +267,9 @@
     var data = await res.json();
     if (data.ok) {
       hayCambiosPendientes = false;
+      if (typeof window.recargarCatalogoBusqueda === 'function') {
+        window.recargarCatalogoBusqueda();
+      }
     }
     return data;
   }
@@ -269,6 +303,21 @@
 
     cargarDesdeBD: cargarDesdeBD,
     guardarEnBD: guardarEnBD,
+
+    abrirPorId: function (id) {
+      if (typeof map === 'undefined' || !id) return false;
+      var poi = listaPOIs.find(function (p) { return String(p.id) === String(id); });
+      if (!poi) return false;
+
+      var cat = poi.categoria || 'banos';
+      var meta = CATALOGO[cat] || { label: cat, color: '#2563eb', icon: 'location' };
+
+      L.popup(obtenerOpcionesPopup(false))
+        .setLatLng([poi.lat, poi.lng])
+        .setContent(construirPopupPublico(poi, meta))
+        .openOn(map);
+      return true;
+    },
 
     _crearDesdePopup: function (lat, lng) {
       var catEl = document.getElementById('fiad-nuevo-poi-cat');

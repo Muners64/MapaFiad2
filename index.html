@@ -47,7 +47,7 @@
             }
         }
     </style>
-    <script src="https://kit.fontawesome.com/5585023123.js" crossorigin="anonymous"></script>
+    <script defer src="https://kit.fontawesome.com/5585023123.js" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" onerror="this.onerror=null; this.href='libs/leaflet-routing-machine/leaflet-routing-machine.css'">
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet" onerror="this.onerror=null; this.href='libs/mapbox-gl/mapbox-gl.css'" />
 
@@ -115,10 +115,33 @@
         <button type="button" id="btn-toggle-ubicacion" class="lateral-btn is-no-permission" aria-label="Activar o desactivar ubicación" title="Ubicación desactivada — Toca para activar">
             <ion-icon name="location-outline"></ion-icon>
         </button>
+        <button type="button" id="btn-centrar-universidad" class="lateral-btn" aria-label="Centrar en la universidad" title="Centrar en la universidad">
+            <ion-icon name="school-outline"></ion-icon>
+        </button>
         <button id="btn_capas" class="lateral-btn" title="Cambiar vista del mapa" aria-label="Cambiar vista del mapa">
             <ion-icon name="layers-outline"></ion-icon>
         </button>
+        <button type="button" id="btn-config-mapa" class="lateral-btn" aria-label="Configuración del mapa" title="Configuración del mapa">
+            <ion-icon name="settings-outline"></ion-icon>
+        </button>
     </div>
+    <script>
+        (function () {
+            try {
+                var cfg = JSON.parse(localStorage.getItem('fiad_map_ui_config'));
+                if (cfg && typeof cfg === 'object') {
+                    if (cfg.mostrarCapas === false) {
+                        var bCapas = document.getElementById('btn_capas');
+                        if (bCapas) bCapas.style.display = 'none';
+                    }
+                    if (cfg.mostrarCentrarUniversidad === false) {
+                        var bCentrar = document.getElementById('btn-centrar-universidad');
+                        if (bCentrar) bCentrar.style.display = 'none';
+                    }
+                }
+            } catch (e) {}
+        })();
+    </script>
 
     <!-- Mapa --> 
     <div id="mapContainer">
@@ -243,7 +266,7 @@
         })();
 
         function loadLocalScripts() {
-            const version = '?v=12';
+            const version = '?v=15';
             var scripts = [
                 'scripts/script_capa.js' + version,
                 'scripts/mapbox_router_php.js' + version,
