@@ -69,9 +69,21 @@
     color: #dc2626;
 }
 
+/* Destello de atención cuando se indica activar ubicación */
+.lateral-btn.is-attention {
+    border-color: #dc2626;
+    animation: btn-location-attention 1.3s ease-out 2;
+}
+
 @keyframes btn-pulse {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.4; transform: scale(0.92); }
+}
+
+@keyframes btn-location-attention {
+    0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45), 0 4px 12px rgba(0, 0, 0, 0.15); }
+    70% { box-shadow: 0 0 0 11px rgba(220, 38, 38, 0), 0 4px 12px rgba(0, 0, 0, 0.15); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0), 0 4px 12px rgba(0, 0, 0, 0.15); }
 }
 
 @media screen and (max-width: 768px) {
@@ -81,8 +93,8 @@
         right: 14px;
     }
 
-    /* Si el panel de información está visible, los botones quedan debajo y no reciben clics */
-    body:has(.panel_informacion[style*="display: block"]) .botones_laterales {
+    /* Solo deshabilitar clics si el panel inferior está completamente expandido */
+    body:has(.panel_informacion.panel-expanded[style*="display: block"]) .botones_laterales {
         pointer-events: none;
     }
 

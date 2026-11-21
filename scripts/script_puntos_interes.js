@@ -5,6 +5,16 @@
   var _basePath = window.location.pathname.replace(/\/[^\/]*$/, '');
   var API_POI_URL = window.location.origin + _basePath + '/api/puntos_interes.php';
 
+  // Inyectar styles/styles_puntos_interes.css automáticamente si aún no está en el <head>
+  (function asegurarEstilosPOI() {
+    if (document.getElementById('fiad-styles-poi') || document.querySelector('link[href*="styles_puntos_interes.css"]')) return;
+    var link = document.createElement('link');
+    link.id = 'fiad-styles-poi';
+    link.rel = 'stylesheet';
+    link.href = window.location.origin + _basePath + '/styles/styles_puntos_interes.css';
+    document.head.appendChild(link);
+  })();
+
   var listaPOIs = [];
   var marcadoresPorId = {};
   var cargados = false;
@@ -23,7 +33,7 @@
     '</svg>';
 
   var SVG_FLECHA_RUTA =
-    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;">' +
+    '<svg class="fiad-poi-flecha-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
       '<polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>' +
     '</svg>';
 
@@ -65,10 +75,10 @@
   function renderizarIconoHTML(meta, sizePx) {
     var sz = sizePx || 16;
     if (meta && meta.svg) {
-      return meta.svg.replace('<svg ', '<svg width="' + sz + '" height="' + sz + '" style="display:block;flex-shrink:0;" ');
+      return meta.svg.replace('<svg ', '<svg class="fiad-poi-svg-icon" style="--poi-icon-size:' + sz + 'px;" ');
     }
     var iconName = (meta && meta.icon) ? meta.icon : 'location';
-    return '<ion-icon name="' + iconName + '" style="font-size:' + sz + 'px;"></ion-icon>';
+    return '<ion-icon class="fiad-poi-ion-icon" name="' + iconName + '" style="--poi-icon-size:' + sz + 'px;"></ion-icon>';
   }
 
   function crearIconoPOI(categoria) {
@@ -78,7 +88,7 @@
       iconSize: [30, 30],
       iconAnchor: [15, 15],
       popupAnchor: [0, -15],
-      html: '<div class="fiad-poi-pin" style="background:' + meta.color + ';">' + renderizarIconoHTML(meta, 16) + '</div>'
+      html: '<div class="fiad-poi-pin" style="--poi-color:' + meta.color + ';">' + renderizarIconoHTML(meta, 16) + '</div>'
     });
   }
 
@@ -86,21 +96,24 @@
     var nombreRaw = (poi.nombre || '').trim();
     var descRaw = (poi.descripcion || '').trim();
     var tieneNombrePropio = nombreRaw !== '' && nombreRaw.toLowerCase() !== meta.label.toLowerCase();
+    var tituloDestino = tieneNombrePropio ? nombreRaw : meta.label;
+    var ubicacionActiva = !(window.UbicacionCampus && typeof window.UbicacionCampus.estaActiva === 'function') || window.UbicacionCampus.estaActiva();
+    var claseBloqueo = ubicacionActiva ? '' : ' is-ubicacion-bloqueada';
 
-    var html = '<div class="fiad-poi-popup-card" style="font-family:\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;font-size:12.5px;">';
+    var html = '<div class="fiad-poi-popup-card" style="--poi-color:' + meta.color + ';">';
 
     if (tieneNombrePropio) {
       html +=
-        '<div style="padding-right:22px;">' +
-          '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:' + meta.color + ';color:#fff;font-size:11px;font-weight:700;">' +
+        '<div class="fiad-poi-popup-header">' +
+          '<span class="fiad-poi-badge">' +
             renderizarIconoHTML(meta, 13) + ' ' + escaparHTML(meta.label) +
           '</span>' +
-          '<div style="font-weight:700;font-size:13.5px;margin-top:5px;color:#1a1a1a;line-height:1.25;">' + escaparHTML(nombreRaw) + '</div>' +
+          '<div class="fiad-poi-title">' + escaparHTML(nombreRaw) + '</div>' +
         '</div>';
     } else {
       html +=
-        '<div style="display:flex;align-items:center;gap:6px;padding-right:22px;font-weight:700;font-size:13.5px;color:#1a1a1a;line-height:1.25;">' +
-          '<span style="width:22px;height:22px;border-radius:50%;background:' + meta.color + ';color:#fff;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+        '<div class="fiad-poi-header-simple">' +
+          '<span class="fiad-poi-icon-circle">' +
             renderizarIconoHTML(meta, 13) +
           '</span>' +
           '<span>' + escaparHTML(meta.label) + '</span>' +
@@ -108,12 +121,16 @@
     }
 
     if (descRaw !== '') {
-      html += '<p style="margin:6px 0 0 0;color:#666666;line-height:1.38;word-break:break-word;">' + escaparHTML(descRaw) + '</p>';
+      html += '<p class="fiad-poi-desc">' + escaparHTML(descRaw) + '</p>';
     }
 
     html +=
-      '<button type="button" onclick="window.irAPuntoInteres(' + poi.lat + ',' + poi.lng + ')" ' +
-        'style="margin-top:9px;width:100%;padding:8px 12px;border-radius:10px;background:#2da832;color:#fff;font-weight:700;font-size:13px;border:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 2px 8px rgba(45,168,50,0.25);">' +
+      '<button type="button" class="fiad-poi-btn-ruta' + claseBloqueo + '" ' +
+        'data-requiere-ubicacion="true" ' +
+        'data-poi-lat="' + poi.lat + '" ' +
+        'data-poi-lng="' + poi.lng + '" ' +
+        'data-poi-titulo="' + escaparHTML(tituloDestino) + '" ' +
+        'onclick="window.irAPuntoInteres(' + poi.lat + ',' + poi.lng + ', this.getAttribute(\'data-poi-titulo\'))">' +
         SVG_FLECHA_RUTA +
         '<span>Cómo llegar</span>' +
       '</button>' +
@@ -274,8 +291,15 @@
     return data;
   }
 
-  window.irAPuntoInteres = function (lat, lng) {
+  window.irAPuntoInteres = function (lat, lng, nombreDestino) {
     if (typeof map === 'undefined') return;
+
+    if (typeof window.iniciarRutaHacia === 'function') {
+      map.closePopup();
+      window.iniciarRutaHacia([lat, lng], nombreDestino || 'Punto de interés');
+      return;
+    }
+
     window.endPoint = [lat, lng];
     if (typeof endPoint !== 'undefined') endPoint = [lat, lng];
 

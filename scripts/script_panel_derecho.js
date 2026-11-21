@@ -62,6 +62,10 @@ var panelSheetHeader = document.getElementById('panelSheetHeader');
 var contenedorPanelInfo = document.getElementById('contenedor_panel_info');
 var panelCustomScrollbar = document.getElementById('panelCustomScrollbar');
 var panelCustomScrollThumb = document.getElementById('panelCustomScrollThumb');
+var btnDireccionesInicial = document.getElementById('btn_direcciones');
+if (btnDireccionesInicial) {
+    btnDireccionesInicial.setAttribute('data-requiere-ubicacion', 'true');
+}
 var resaltadoPendiente = null;
 
 /* Sincronización de barra de scroll gris permanente */
@@ -924,6 +928,10 @@ function mostrarPanelEdificio(edificio) {
     panel_informacion.dataset.panelState = esVistaMovilPanel() ? 'partial' : 'expanded';
     actualizarEstadoCargaVisualPanel();
 
+    if (window.UbicacionCampus && typeof window.UbicacionCampus.sincronizarBotonesRuta === 'function') {
+        window.UbicacionCampus.sincronizarBotonesRuta();
+    }
+
     if (esVistaMovilPanel()) {
         requestAnimationFrame(function () {
             if (miToken === tokenSeleccionActual) abrirPanelMovil();
@@ -1012,34 +1020,44 @@ function mostrarPanelEdificio(edificio) {
         actualizarEstadoCargaVisualPanel();
     }
 
-    document.getElementById('btn_direcciones').onclick = function () {
-        if (edificio) {
-            var destinoCoords = (typeof window.obtenerPuntoEdificio === 'function')
-                ? window.obtenerPuntoEdificio(edificio)
-                : (edificio.labelCoords || edificio.coords[0]);
-            if (!destinoCoords) return;
-
-            var nombreDestino = document.getElementById('edificioNombre').innerText || edificio.nombre || edificio.codigo || 'Destino';
-
-            if (typeof window.iniciarRutaHacia === 'function') {
-                window.iniciarRutaHacia(destinoCoords, nombreDestino);
-            } else {
-                endPoint = destinoCoords;
-                window.destinoNombreActual = nombreDestino;
-                if (window.endMarker) map.removeLayer(window.endMarker);
-                window.endMarker = L.marker(endPoint, {
-                    draggable: true,
-                    icon: window.iconoDestinoRojo
-                }).addTo(map);
-                if (typeof window.limpiarMarcadoresEspacios === 'function') {
-                    window.limpiarMarcadoresEspacios();
+    var btnDirecciones = document.getElementById('btn_direcciones');
+    if (btnDirecciones) {
+        btnDirecciones.setAttribute('data-requiere-ubicacion', 'true');
+        btnDirecciones.onclick = function () {
+            if (window.UbicacionCampus && typeof window.UbicacionCampus.requerirUbicacion === 'function') {
+                if (!window.UbicacionCampus.requerirUbicacion()) {
+                    return;
                 }
-                updateRoute(true);
             }
 
-            panel_informacion.style.display = 'none';
-        }
-    };
+            if (edificio) {
+                var destinoCoords = (typeof window.obtenerPuntoEdificio === 'function')
+                    ? window.obtenerPuntoEdificio(edificio)
+                    : (edificio.labelCoords || edificio.coords[0]);
+                if (!destinoCoords) return;
+
+                var nombreDestino = document.getElementById('edificioNombre').innerText || edificio.nombre || edificio.codigo || 'Destino';
+
+                if (typeof window.iniciarRutaHacia === 'function') {
+                    window.iniciarRutaHacia(destinoCoords, nombreDestino);
+                } else {
+                    endPoint = destinoCoords;
+                    window.destinoNombreActual = nombreDestino;
+                    if (window.endMarker) map.removeLayer(window.endMarker);
+                    window.endMarker = L.marker(endPoint, {
+                        draggable: true,
+                        icon: window.iconoDestinoRojo
+                    }).addTo(map);
+                    if (typeof window.limpiarMarcadoresEspacios === 'function') {
+                        window.limpiarMarcadoresEspacios();
+                    }
+                    updateRoute(true);
+                }
+
+                panel_informacion.style.display = 'none';
+            }
+        };
+    }
 }
 
 /* Plantas deshabilitado temporalmente

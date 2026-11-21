@@ -360,6 +360,10 @@ function vincularEventosTarjetaRuta() {
   const btnActivarGps = document.getElementById('btn-ruta-activar-gps');
   if (btnActivarGps) {
     btnActivarGps.onclick = function () {
+      if (window.UbicacionCampus && typeof window.UbicacionCampus.solicitarActivar === 'function') {
+        window.UbicacionCampus.solicitarActivar();
+        return;
+      }
       const btnLoc = document.getElementById('btn-toggle-ubicacion') ||
                      document.getElementById('btn-ubicacion') ||
                      document.getElementById('location-btn') ||
@@ -466,6 +470,14 @@ function updateRoute(permitirEncuadre) {
 // API pública para iniciar ruta desde "Cómo llegar"
 window.iniciarRutaHacia = function (coordenadasDestino, nombreDestino) {
   if (!coordenadasDestino) return;
+
+  // Bloqueo centralizado: si no hay ubicación activa, indicar al usuario que la encienda
+  if (window.UbicacionCampus && typeof window.UbicacionCampus.requerirUbicacion === 'function') {
+    if (!window.UbicacionCampus.requerirUbicacion()) {
+      return;
+    }
+  }
+
   endPoint = coordenadasDestino;
   if (nombreDestino) {
     window.destinoNombreActual = nombreDestino;

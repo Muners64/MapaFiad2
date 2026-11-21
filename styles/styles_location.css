@@ -6,3 +6,295 @@
   border-radius: 50%;
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.28), 0 2px 6px rgba(0, 0, 0, 0.35);
 }
+
+/* ==========================================================================
+   Estado bloqueado para cualquier botón "Cómo llegar" sin ubicación activa
+   ========================================================================== */
+
+[data-requiere-ubicacion].is-ubicacion-bloqueada,
+#btn_direcciones.is-ubicacion-bloqueada,
+.fiad-poi-btn-ruta.is-ubicacion-bloqueada {
+  background: #9ca3af !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+  opacity: 0.78;
+  cursor: not-allowed;
+}
+
+[data-requiere-ubicacion].is-ubicacion-bloqueada:hover,
+#btn_direcciones.is-ubicacion-bloqueada:hover,
+.fiad-poi-btn-ruta.is-ubicacion-bloqueada:hover {
+  background: #8b93a0 !important;
+  opacity: 0.86;
+}
+
+/* ==========================================================================
+   Popup indicador sobre el botón de ubicación (Callout estilo POI/Edificios)
+   ========================================================================== */
+
+.fiad-loc-callout {
+  position: fixed;
+  z-index: 1200;
+  width: min(256px, calc(100vw - 84px));
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 11px 13px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 12.5px;
+  color: #1a1a1a;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(8px) scale(0.97);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.2s ease;
+}
+
+.fiad-loc-callout.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0) scale(1);
+  pointer-events: auto;
+}
+
+.fiad-loc-callout-arrow {
+  position: absolute;
+  right: -7px;
+  top: 20px;
+  width: 13px;
+  height: 13px;
+  background: #ffffff;
+  border-top: 1px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
+  transform: rotate(45deg);
+  box-shadow: 3px -3px 6px rgba(0, 0, 0, 0.04);
+}
+
+.fiad-loc-callout-close {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #6b7280;
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.fiad-loc-callout-close:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.fiad-loc-callout-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 22px;
+}
+
+.fiad-loc-callout-icon {
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: #fee2e2;
+  color: #dc2626;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.fiad-loc-callout-title {
+  font-weight: 700;
+  font-size: 13.5px;
+  color: #1a1a1a;
+  line-height: 1.25;
+}
+
+.fiad-loc-callout-desc {
+  margin: 6px 0 0 0;
+  color: #666666;
+  line-height: 1.38;
+}
+
+/* ==========================================================================
+   Popup de retroalimentación / solución de problemas de ubicación
+   ========================================================================== */
+
+.fiad-loc-help-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  background: rgba(17, 24, 39, 0.48);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.fiad-loc-help-backdrop.is-visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.fiad-loc-help-card {
+  position: relative;
+  width: 100%;
+  max-width: 390px;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 18px 18px 16px 18px;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: #1a1a1a;
+  transform: translateY(10px) scale(0.97);
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.fiad-loc-help-backdrop.is-visible .fiad-loc-help-card {
+  transform: translateY(0) scale(1);
+}
+
+.fiad-loc-help-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: #f3f4f6;
+  color: #4b5563;
+  font-size: 19px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.fiad-loc-help-close:hover {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.fiad-loc-help-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.fiad-loc-help-title {
+  margin: 9px 0 0 0;
+  padding-right: 26px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.28;
+}
+
+.fiad-loc-help-desc {
+  margin: 6px 0 0 0;
+  font-size: 13px;
+  color: #666666;
+  line-height: 1.42;
+}
+
+.fiad-loc-help-steps-box {
+  margin-top: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 11px 13px;
+}
+
+.fiad-loc-help-steps-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 7px;
+}
+
+.fiad-loc-help-steps {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.8px;
+  color: #1f2937;
+  line-height: 1.4;
+}
+
+.fiad-loc-help-steps strong {
+  color: #111827;
+}
+
+.fiad-loc-help-actions {
+  margin-top: 14px;
+  display: flex;
+  gap: 8px;
+}
+
+.fiad-loc-help-btn-primary,
+.fiad-loc-help-btn-secondary {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background-color 0.16s ease, transform 0.14s ease;
+}
+
+.fiad-loc-help-btn-primary {
+  background: #2da832;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(45, 168, 50, 0.25);
+}
+
+.fiad-loc-help-btn-primary:hover {
+  background: #248c29;
+}
+
+.fiad-loc-help-btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.fiad-loc-help-btn-secondary:hover {
+  background: #e5e7eb;
+}

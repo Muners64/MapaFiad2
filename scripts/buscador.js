@@ -19,6 +19,8 @@ let catalogoCargado = false;
 let promesaCargaCatalogo = null;
 let resultadosBusqueda = [];
 let currentIndex = -1;
+const MAX_SUGERENCIAS_VISIBLES = 8;
+const DESC_MAX_CARACTERES = 160; // el CSS la muestra en máximo 2 líneas
 
 const CATEGORIAS_POI_META = {
     banos: {
@@ -63,6 +65,16 @@ function quitarAcentos(texto) {
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase();
+}
+
+// Recorta en el último límite de palabra para no partir palabras a la mitad
+function truncarTexto(texto, max) {
+    const limpio = String(texto || '').replace(/\s+/g, ' ').trim();
+    if (limpio.length <= max) return limpio;
+    const corte = limpio.slice(0, max);
+    const ultimoEspacio = corte.lastIndexOf(' ');
+    const base = ultimoEspacio > max * 0.6 ? corte.slice(0, ultimoEspacio) : corte;
+    return base.replace(/[\s,.;:\-–]+$/, '') + '…';
 }
 
 function normalizarBusqueda(texto) {
@@ -176,6 +188,7 @@ function construirIndiceDesdeDatos(data) {
                 subtitulo: codigo,
                 coordenadas: [lat, lng],
                 codigo: codigo,
+                descripcion: truncarTexto(ed.descripcion, DESC_MAX_CARACTERES),
                 prioridadBase: 25,
                 textoPrimario: `${codigo} ${nombre}`,
                 textoSecundario: `${extraEdificio} ${ed.descripcion || ''}`
@@ -224,6 +237,13 @@ function construirIndiceDesdeDatos(data) {
                 subtitulo += ` · ${profe}`;
             }
 
+            // Línea secundaria compacta del desplegable (no altera 'subtitulo')
+            const edifTieneCodigo = codEdif && quitarAcentos(nomEdif).indexOf(quitarAcentos(codEdif)) !== -1;
+            let contextoEspacio = (nomEdif !== codEdif && !edifTieneCodigo) ? `${nomEdif} (${codEdif})` : nomEdif;
+            if (tipoResultado === 'cubiculo' && profe) {
+                contextoEspacio = codEdif ? `${profe} · ${codEdif}` : profe;
+            }
+
             docs.push(construirDocumentoIndice({
                 tipo_resultado: tipoResultado,
                 nombre: nombreMostrar,
@@ -232,6 +252,7 @@ function construirIndiceDesdeDatos(data) {
                 codigo: codEdif,
                 codigo_espacio: codCompleto || numEspacio,
                 profesor_asignado: profe,
+                contexto: contextoEspacio,
                 prioridadBase: prioridadBase,
                 textoPrimario: `${nombreMostrar} ${numEspacio} ${codCompleto} ${codEdif}`,
                 textoSecundario: `${sinonimosTipo} ${nomEdif} ${profe}`
@@ -265,6 +286,7 @@ function construirIndiceDesdeDatos(data) {
                 codigo: codEdif,
                 codigo_espacio: codOficina,
                 profesor_asignado: nombreProf,
+                contexto: [codOficina ? `Cubículo ${codOficina}` : '', codEdif].filter(Boolean).join(' · '),
                 prioridadBase: 17,
                 textoPrimario: `${nombreProf} ${tituloProf}`,
                 textoSecundario: `profesor profesora docente maestro maestra cubiculo ${codOficina} ${codEdif} ${nomEdif}`
@@ -293,7 +315,9 @@ function construirIndiceDesdeDatos(data) {
             docs.push(construirDocumentoIndice({
                 tipo_resultado: 'poi',
                 poi_id: String(poi.id || ''),
+                categoria: cat,
                 categoria_label: meta.label,
+                descripcion: truncarTexto(descRaw, DESC_MAX_CARACTERES),
                 nombre: nombreMostrar,
                 subtitulo: subtitulo,
                 coordenadas: [lat, lng],
@@ -446,26 +470,93 @@ function etiquetaTipoResultado(item) {
     return 'Edificio';
 }
 
+// Símbolo de Baños (dos figuras): el mismo que usa el marcador del mapa.
+// Se toma de script_puntos_interes.js; esta copia es solo respaldo si aún no cargó.
+const SVG_BANOS_RESPALDO =
+    '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+    '<circle cx="7" cy="4.5" r="2"/>' +
+    '<path d="M4.5 8.5A1.5 1.5 0 0 1 6 7h2a1.5 1.5 0 0 1 1.5 1.5V14H8.2v6H5.8v-6H4.5V8.5z"/>' +
+    '<circle cx="17" cy="4.5" r="2"/>' +
+    '<path d="M15.2 7h3.6c.65 0 1.22.42 1.42 1.04L21.5 13h-2.3v7h-4.4v-7h-2.3l1.28-4.96A1.5 1.5 0 0 1 15.2 7z"/>' +
+    '</svg>';
+
+function iconoBanosHTML() {
+    const api = window.PuntosInteresCampus;
+    const svg = (api && api.CATALOGO && api.CATALOGO.banos && api.CATALOGO.banos.svg) || SVG_BANOS_RESPALDO;
+    return svg.replace('<svg ', '<svg width="20" height="20" style="display:block;" ');
+}
+
+const ICONOS_POI = {
+    biblioteca: 'book-outline',
+    canchas: 'basketball-outline',
+    estacionamiento: 'car-outline',
+    cafeteria: 'cafe-outline',
+    tienda: 'storefront-outline'
+};
+
+function iconoIonHTML(nombre) {
+    return '<ion-icon name="' + nombre + '" aria-hidden="true"></ion-icon>';
+}
+
+// Ícono + clase de color por tipo (los colores viven en styles_suggestion.css)
+function metaVisualResultado(item) {
+    switch (item.tipo_resultado) {
+        case 'laboratorio': return { iconoHTML: iconoIonHTML('flask-outline'), clase: 'sug--laboratorio' };
+        case 'aula':        return { iconoHTML: iconoIonHTML('school-outline'), clase: 'sug--aula' };
+        case 'taller':      return { iconoHTML: iconoIonHTML('construct-outline'), clase: 'sug--taller' };
+        case 'cubiculo':    return { iconoHTML: iconoIonHTML('briefcase-outline'), clase: 'sug--persona' };
+        case 'profesor':    return { iconoHTML: iconoIonHTML('person-outline'), clase: 'sug--persona' };
+        case 'poi': {
+            const cat = String(item.categoria || 'otro').replace(/[^a-z0-9_-]/gi, '');
+            const iconoHTML = cat === 'banos'
+                ? iconoBanosHTML()
+                : iconoIonHTML(ICONOS_POI[cat] || 'location-outline');
+            return { iconoHTML: iconoHTML, clase: 'sug--poi-' + cat };
+        }
+        default:            return { iconoHTML: iconoIonHTML('business-outline'), clase: 'sug--edificio' };
+    }
+}
+
 function construirItemSugerencia(item, index) {
     const tipo = etiquetaTipoResultado(item);
-    const subtituloText = item.subtitulo ? String(item.subtitulo) : '';
-    let subtitulo = subtituloText
-        ? '<div class="sugerencia-linea-secundaria">' + sanitizeHTML(subtituloText) + '</div>'
-        : '';
+    const meta = metaVisualResultado(item);
 
-    let displayName = String(item.nombre || '');
+    // Título: nombre sin repetir el tipo ("Edificio E1" -> "E1")
+    let titulo = String(item.nombre || '');
     try {
-        const tipoRegex = new RegExp('^' + tipo + '\\s+', 'i');
-        displayName = displayName.replace(tipoRegex, '');
+        titulo = titulo.replace(new RegExp('^' + tipo + '\\s+', 'i'), '');
     } catch (e) {}
 
-    if (subtituloText && displayName.toLowerCase().indexOf(subtituloText.toLowerCase()) !== -1) {
-        subtitulo = '';
+    // Contexto: una sola línea corta; se omite si repite el título
+    let contexto = String(item.contexto || '').trim();
+    if (contexto && quitarAcentos(titulo).indexOf(quitarAcentos(contexto)) !== -1) {
+        contexto = '';
     }
 
-    return '<li data-index="' + index + '">' +
-        '<span class="sugerencia-linea-principal"><span class="sugerencia-badge">' + sanitizeHTML(tipo) + '</span> ' + sanitizeHTML(displayName) + '</span>' +
-        subtitulo +
+    // Si el título ya es el tipo (ej. POI sin nombre propio: "Cafetería"), no se repite
+    const mostrarTipo = quitarAcentos(titulo) !== quitarAcentos(tipo);
+
+    let linea2 = '';
+    if (mostrarTipo) {
+        linea2 += '<span class="sug-tipo">' + sanitizeHTML(tipo) + '</span>';
+    }
+    if (contexto) {
+        linea2 += '<span class="sug-ctx' + (mostrarTipo ? ' sug-ctx--sep' : '') + '">' + sanitizeHTML(contexto) + '</span>';
+    }
+
+    // Descripción: debajo, en hasta 3 líneas (el CSS agrega "…" si aun así no cabe)
+    let descripcion = String(item.descripcion || '').trim();
+    if (descripcion && quitarAcentos(descripcion) === quitarAcentos(titulo)) {
+        descripcion = '';
+    }
+
+    return '<li class="sug-item ' + meta.clase + '" data-index="' + index + '">' +
+        '<span class="sug-icono">' + meta.iconoHTML + '</span>' +
+        '<span class="sug-texto">' +
+            '<span class="sug-titulo">' + sanitizeHTML(titulo) + '</span>' +
+            (linea2 ? '<span class="sug-meta">' + linea2 + '</span>' : '') +
+        '</span>' +
+        (descripcion ? '<span class="sug-desc">' + sanitizeHTML(descripcion) + '</span>' : '') +
         '</li>';
 }
 
@@ -478,7 +569,13 @@ async function actualizarSugerenciasEnVivo(userData) {
     resultadosBusqueda = sugerencias;
     currentIndex = -1;
 
-    const items = sugerencias.map((resultado, index) => construirItemSugerencia(resultado, index));
+    const items = sugerencias
+        .slice(0, MAX_SUGERENCIAS_VISIBLES)
+        .map((resultado, index) => construirItemSugerencia(resultado, index));
+
+    if (sugerencias.length > MAX_SUGERENCIAS_VISIBLES) {
+        items.push('<li class="sug-more">Hay más coincidencias · sigue escribiendo para afinar</li>');
+    }
     searchContainer.classList.add('active');
     showSuggestions(items);
 
@@ -499,7 +596,7 @@ function manejarCambioInputBusqueda() {
     const userData = inputSearch.value.trim();
 
     if (userData && !validarInput(userData)) {
-        boxSuggestions.innerHTML = '<li>Caracteres no permitidos</li>';
+        boxSuggestions.innerHTML = '<li class="sug-empty">Caracteres no permitidos</li>';
         searchContainer.classList.add('active');
         return;
     }
@@ -530,7 +627,7 @@ inputSearch.onkeyup = (e) => {
 const showSuggestions = (list) => {
     try {
         const listData = (!list || list.length === 0)
-            ? '<li>No hay resultados</li>'
+            ? '<li class="sug-empty">No hay resultados</li>'
             : list.join('');
 
         if (boxSuggestions) {
@@ -539,7 +636,7 @@ const showSuggestions = (list) => {
     } catch (error) {
         console.error('Error al mostrar sugerencias:', error);
         if (boxSuggestions) {
-            boxSuggestions.innerHTML = '<li>Error al cargar sugerencias</li>';
+            boxSuggestions.innerHTML = '<li class="sug-empty">Error al cargar sugerencias</li>';
         }
     }
 };
@@ -702,6 +799,9 @@ function updateSuggestionsHighlight(suggestions) {
         suggestion.classList.remove('highlight');
         if (index === currentIndex) {
             suggestion.classList.add('highlight');
+            if (typeof suggestion.scrollIntoView === 'function') {
+                suggestion.scrollIntoView({ block: 'nearest' });
+            }
         }
     });
 }

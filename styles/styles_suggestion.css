@@ -1,3 +1,6 @@
+/* ============================================================
+   BARRA DE BÚSQUEDA (caja oscura + input)
+   ============================================================ */
 
 .container {
 	max-width: 200px;
@@ -35,66 +38,6 @@
 	color: #e4ad17;
 }
 
-.container-suggestions {
-	position: absolute; 
-	top: 100%; 
-	left: 0;
-	width: 100%;
-	background-color: #232323;
-	z-index: 2000; 
-	max-height: 280px;
-	opacity: 0;
-	pointer-events: none;
-	padding: 0;
-	overflow-y: auto;
-}
-
-.search-input-box.active .container-suggestions {
-	opacity: 1;
-	pointer-events: auto;
-	padding: 10px 8px;
-}
-
-.search-input-box.active .container-suggestions li {
-	display: block;
-}
-
-.container-suggestions li {
-	list-style: none;
-	width: 100%;
-	padding: 8px 12px;
-	border-radius: 10px;
-	display: block;
-}
-
-.sugerencia-linea-principal {
-	display: block;
-	font-weight: 700;
-	line-height: 1.2;
-}
-
-.sugerencia-linea-secundaria {
-	display: block;
-	font-size: 12px;
-	color: #cfd7df;
-	margin-top: 2px;
-}
-
-.sugerencia-badge {
-	display: inline-block;
-	font-size: 11px;
-	font-weight: 700;
-	padding: 2px 7px;
-	margin-right: 6px;
-	border-radius: 999px;
-	background: #2f3c49;
-	color: #f5f6f4;
-}
-
-.container-suggestions li:hover{
-    background-color: #414b57;
-}
-
 @media screen and (max-width: 767px) {
 	.search-input-box {
 		border-radius: 18px;
@@ -113,11 +56,6 @@
 		font-size: 20px;
 	}
 
-	.container-suggestions {
-		max-height: 200px;
-		border-radius: 0 0 16px 16px;
-		box-shadow: 0 12px 24px rgba(0, 0, 0, 0.18);
-	}
 }
 
 @media screen and (max-width: 480px) {
@@ -136,4 +74,221 @@
 		right: 12px;
 		font-size: 18px;
 	}
+}
+
+/* ============================================================
+   DESPLEGABLE DE SUGERENCIAS DEL BUSCADOR
+   Parte del mismo archivo; el orden de carga ya no es crítico.
+   Usa el mismo lenguaje visual del panel: tarjeta blanca, borde #e0e0e0,
+   radio 16px, sombra suave, acento verde y colores de badge por tipo.
+   ============================================================ */
+
+/* ---------- Contenedor: tarjeta flotante que empieza debajo de la barra ---------- */
+.search-input-box .container-suggestions {
+    display: none !important;
+    position: absolute !important;
+    --sug-gap: 0px;
+    top: calc(100% + var(--sug-gap)) !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 6px !important;
+    list-style: none !important;
+    max-height: min(60vh, 440px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    background: rgba(255, 255, 255, 0.97) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 16px !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16) !important;
+    color: #1a1a1a !important;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    z-index: 400;
+    scrollbar-width: thin;
+    scrollbar-color: #cfd4da transparent;
+}
+
+.navbar:not(.search-collapsed) .search-input-box.active .container-suggestions {
+    display: block !important;
+    animation: sug-entrada 0.16s ease-out;
+}
+
+/* Con el desplegable abierto, la barra queda por encima del panel de información */
+.navbar:has(.search-input-box.active) {
+    z-index: 400;
+}
+
+@keyframes sug-entrada {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.container-suggestions::-webkit-scrollbar { width: 6px; }
+.container-suggestions::-webkit-scrollbar-thumb { background: #cfd4da; border-radius: 3px; }
+
+/* ---------- Fila ---------- */
+.search-input-box .container-suggestions li.sug-item {
+    --sug-fg: #248f28;
+    --sug-bg: #e8f5e9;
+    --sug-bd: #bbf7d0;
+
+    display: grid !important;
+    grid-template-columns: 38px minmax(0, 1fr);
+    column-gap: 12px;
+    row-gap: 6px;
+    align-items: center;
+    min-height: 54px;
+    padding: 8px 10px !important;
+    margin: 0 !important;
+    border: 1px solid transparent !important;
+    border-radius: 12px !important;
+    background: transparent !important;
+    color: #1a1a1a !important;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.search-input-box .container-suggestions li.sug-item:hover,
+.search-input-box .container-suggestions li.sug-item:active {
+    background: #f4f6f8 !important;
+}
+
+/* Resaltado con teclado (flechas): mismo verde que la pestaña activa del panel */
+.search-input-box .container-suggestions li.sug-item.highlight {
+    background: #e8f5e9 !important;
+    border-color: #bbf7d0 !important;
+    color: #1a1a1a !important;
+}
+
+/* ---------- Ícono por tipo ---------- */
+.sug-icono {
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: var(--sug-bg);
+    border: 1px solid var(--sug-bd);
+    color: var(--sug-fg);
+}
+
+.sug-icono ion-icon {
+    font-size: 1.2rem;
+    pointer-events: none;
+}
+
+/* ---------- Texto: título + línea secundaria, ambos en 1 sola línea ---------- */
+.sug-texto {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sug-titulo {
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: #1a1a1a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sug-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    min-width: 0;
+    font-size: 0.8rem;
+    line-height: 1.25;
+    color: #666666;
+}
+
+.sug-tipo {
+    flex: 0 0 auto;
+    font-weight: 700;
+    color: var(--sug-fg);
+}
+
+.sug-ctx {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sug-desc {
+    grid-column: 1 / -1;   /* arranca desde el borde izquierdo, debajo del ícono */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    font-size: 0.8rem;
+    line-height: 1.35;
+    color: #666666;
+    overflow-wrap: anywhere;
+}
+
+.sug-ctx--sep::before {
+    content: '·';
+    margin-right: 5px;
+    color: #9aa3ad;
+}
+
+/* ---------- Colores por tipo (los mismos del badge del panel) ---------- */
+.sug--edificio    { --sug-fg: #248f28; --sug-bg: #e8f5e9; --sug-bd: #bbf7d0; }
+.sug--aula        { --sug-fg: #248f28; --sug-bg: #e8f5e9; --sug-bd: #bbf7d0; }
+.sug--laboratorio { --sug-fg: #0369a1; --sug-bg: #e0f2fe; --sug-bd: #bae6fd; }
+.sug--taller      { --sug-fg: #7e22ce; --sug-bg: #f3e8ff; --sug-bd: #e9d5ff; }
+.sug--persona     { --sug-fg: #475569; --sug-bg: #eef1f5; --sug-bd: #dde2e8; }
+
+.sug--poi-banos           { --sug-fg: #0e7490; --sug-bg: #e0f7fa; --sug-bd: #a5e8f1; }
+.sug--poi-biblioteca      { --sug-fg: #6d28d9; --sug-bg: #ede9fe; --sug-bd: #ddd6fe; }
+.sug--poi-canchas         { --sug-fg: #c2410c; --sug-bg: #ffedd5; --sug-bd: #fed7aa; }
+.sug--poi-estacionamiento { --sug-fg: #1d4ed8; --sug-bg: #dbeafe; --sug-bd: #bfdbfe; }
+.sug--poi-cafeteria       { --sug-fg: #92400e; --sug-bg: #fef3e2; --sug-bd: #f3dcb8; }
+.sug--poi-tienda          { --sug-fg: #be185d; --sug-bg: #fce7f3; --sug-bd: #fbcfe8; }
+
+/* ---------- Mensajes (sin resultados / pie "hay más") ---------- */
+.search-input-box .container-suggestions li.sug-empty,
+.search-input-box .container-suggestions li.sug-more {
+    display: block !important;
+    background: transparent !important;
+    border: none !important;
+    cursor: default;
+    text-align: center;
+    color: #666666 !important;
+}
+
+.search-input-box .container-suggestions li.sug-empty {
+    padding: 22px 12px !important;
+    font-size: 0.9rem;
+}
+
+.search-input-box .container-suggestions li.sug-more {
+    padding: 8px 12px 6px !important;
+    font-size: 0.75rem;
+    color: #8a929b !important;
+}
+
+/* ---------- Móvil ---------- */
+@media screen and (max-width: 768px) {
+    .search-input-box .container-suggestions {
+        max-height: min(46vh, 340px);
+        max-height: min(46dvh, 340px);
+    }
+
+    .search-input-box .container-suggestions li.sug-item {
+        min-height: 56px;
+    }
 }

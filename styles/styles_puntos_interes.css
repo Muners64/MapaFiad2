@@ -1,0 +1,215 @@
+/* ==========================================================================
+   Marcadores y Popups de Puntos de Interés (POIs)
+   ========================================================================== */
+
+.fiad-poi-marker {
+  background: transparent;
+  border: none;
+}
+
+.fiad-poi-pin {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--poi-color, #2563eb);
+  color: #ffffff;
+  border: 2.5px solid #ffffff;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.fiad-poi-marker:hover .fiad-poi-pin {
+  transform: scale(1.08);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.34);
+}
+
+.fiad-poi-svg-icon {
+  width: var(--poi-icon-size, 16px);
+  height: var(--poi-icon-size, 16px);
+  display: block;
+  flex-shrink: 0;
+}
+
+.fiad-poi-ion-icon {
+  font-size: var(--poi-icon-size, 16px);
+  display: block;
+  flex-shrink: 0;
+}
+
+/* Tarjeta de Popup Público */
+.fiad-poi-popup-card {
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 12.5px;
+  color: #1a1a1a;
+}
+
+.fiad-poi-popup-header {
+  padding-right: 22px;
+}
+
+.fiad-poi-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--poi-color, #2563eb);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.fiad-poi-title {
+  font-weight: 700;
+  font-size: 13.5px;
+  margin-top: 5px;
+  color: #1a1a1a;
+  line-height: 1.25;
+}
+
+.fiad-poi-header-simple {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 22px;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: #1a1a1a;
+  line-height: 1.25;
+}
+
+.fiad-poi-icon-circle {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--poi-color, #2563eb);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.fiad-poi-desc {
+  margin: 6px 0 0 0;
+  color: #666666;
+  line-height: 1.38;
+  word-break: break-word;
+}
+
+.fiad-poi-flecha-icon {
+  flex-shrink: 0;
+}
+
+.fiad-poi-btn-ruta {
+  margin-top: 9px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #2da832;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 0 2px 8px rgba(45, 168, 50, 0.25);
+  transition: background-color 0.18s ease, opacity 0.18s ease, transform 0.14s ease;
+}
+
+.fiad-poi-btn-ruta:hover:not(.is-ubicacion-bloqueada) {
+  background: #248c29;
+}
+
+.fiad-poi-btn-ruta:active:not(.is-ubicacion-bloqueada) {
+  transform: scale(0.98);
+}
+
+/* ==========================================================================
+   Formularios de Editor en Popup
+   ========================================================================== */
+
+.fiad-editor-popup {
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 12.5px;
+  color: #1a1a1a;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fiad-editor-popup > strong {
+  font-size: 13.5px;
+  color: #1a1a1a;
+  padding-right: 18px;
+}
+
+.fiad-editor-popup label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.fiad-editor-popup input,
+.fiad-editor-popup select,
+.fiad-editor-popup textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 12.5px;
+  color: #1a1a1a;
+  background: #ffffff;
+}
+
+.fiad-editor-popup input:focus,
+.fiad-editor-popup select:focus,
+.fiad-editor-popup textarea:focus {
+  outline: none;
+  border-color: #2da832;
+  box-shadow: 0 0 0 2px rgba(45, 168, 50, 0.16);
+}
+
+.fiad-editor-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.fiad-editor-popup-btn {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: none;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.16s ease;
+}
+
+.fiad-editor-popup-btn:hover {
+  opacity: 0.92;
+}
+
+.fiad-editor-popup-btn.is-primary {
+  background: #2da832;
+  color: #ffffff;
+}
+
+.fiad-editor-popup-btn.is-danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
